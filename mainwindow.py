@@ -14,4 +14,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.engine = OCREngine('Tesseract')
 
-        self.setCentralWidget(BoxEditor(self, self.engine))
+        page_image_filename = '/mnt/Daten/Emulation/Amiga/Amiga Magazin/x-000.ppm'
+
+        self.setCentralWidget(BoxEditor(self, self.engine, page_image_filename))

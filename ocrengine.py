@@ -27,7 +27,7 @@ class OCREngine():
         return pytesseract.image_to_string(self.pixmap_to_pil(image), lang=language)
 
     def estimate(self, image: QtGui.QPixmap) -> QtCore.QRect | None:
-        image.save('/tmp/1.png')
+        # image.save('/tmp/1.png')
         # estimate: str = pytesseract.image_to_boxes(self.pixmap_to_pil(image))
 
         words_rects = []
@@ -53,20 +53,24 @@ class OCREngine():
                 (x, y, w, h) = (estimate['left'][i], estimate['top'][i], estimate['width'][i], estimate['height'][i])
                 words_rects.append(QtCore.QRect(x, y, w, h))
 
-        words_rects.sort(key=lambda x: x.top(), reverse=True)
+        if words_rects:
+            margin = 10
 
-        top = words_rects[-1].top()
+            # Get most outer coordinates for all recognized words
+            words_rects.sort(key=lambda x: x.top(), reverse=True)
 
-        words_rects.sort(key=lambda x: x.left(), reverse=True)
+            top = words_rects[-1].top() - margin
 
-        left = words_rects[-1].left()
-        
-        words_rects.sort(key=lambda x: x.bottom())
+            words_rects.sort(key=lambda x: x.left(), reverse=True)
 
-        bottom = words_rects[-1].bottom()
-        
-        words_rects.sort(key=lambda x: x.right())
+            left = words_rects[-1].left() - margin
+            
+            words_rects.sort(key=lambda x: x.bottom())
 
-        right = words_rects[-1].right()
+            bottom = words_rects[-1].bottom() + margin
+            
+            words_rects.sort(key=lambda x: x.right())
 
-        return QtCore.QRect(QtCore.QPoint(left, top), QtCore.QPoint(right, bottom))
+            right = words_rects[-1].right() + margin
+
+            return QtCore.QRect(QtCore.QPoint(left, top), QtCore.QPoint(right, bottom))

@@ -27,7 +27,7 @@ class BoxOCRProperties():
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, engine: OCREngine, page_image: QtGui.QPixmap) -> None:
+    def __init__(self, engine: OCREngine, property_editor, page_image: QtGui.QPixmap) -> None:
         super().__init__(parent=None)
         self.box = None
         self.image = page_image
@@ -35,13 +35,22 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.engine = engine
         self.box_counter = 0
 
+        self.property_editor = property_editor
+
+        self.selectionChanged.connect(self.update_property_editor)
+
+    def update_property_editor(self):
+        '''Update property editor with the currently selected box'''
+        if self.selectedItems():
+            self.property_editor.select_box(self.selectedItems()[0].properties)
+
     def addBox(self, rect: QtCore.QRectF):
-        """Add new box and give it an order number"""
+        '''Add new box and give it an order number'''
         self.box = Box(rect, self.engine, self)
-        self.box.setSelected(True)
         self.box.properties.order = self.box_counter
         self.box_counter += 1
         self.addItem(self.box)
+        # self.box.text_recognized.connect(self.parent.update_property_editor)
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''
@@ -71,6 +80,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             corner = self.box.rect().topLeft()
             if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
                 self.box.updateProperties()
+                self.box.setSelected(True)
+                self.box.setFocus()
             else:
                 self.removeItem(self.box)
                 self.box_counter -= 1
@@ -93,10 +104,12 @@ class BoxColor():
 
 
 class BoxEditor(QtWidgets.QGraphicsView):
-    def __init__(self, parent, engine: OCREngine, page_image_filename: str) -> None:
+    def __init__(self, parent, engine: OCREngine, property_editor, page_image_filename: str) -> None:
         super().__init__(parent)
 
-        self.setScene(BoxEditorScene(engine, QtGui.QPixmap(page_image_filename)))
+        self.property_editor = property_editor
+
+        self.setScene(BoxEditorScene(engine, self.property_editor, QtGui.QPixmap(page_image_filename)))
         self.origin = QtCore.QPoint()
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
@@ -133,6 +146,8 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
 
 class Box(QtWidgets.QGraphicsRectItem):
+    text_recognized = QtCore.Signal(str)
+
     def __init__(self, rect: QtCore.QRectF, engine: OCREngine, scene: BoxEditorScene) -> None:
         super().__init__(rect, parent=None)
 
@@ -298,7 +313,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         if self.properties.type == BOX_OCR_PROPERTY_TYPE.TEXT:
             read_action = QtGui.QAction('Read')
-            read_action.triggered.connect(self.get_text)
+            read_action.triggered.connect(self.recognize_text)
             self.menu.addAction(read_action)
 
             auto_align_action = QtGui.QAction('Auto align')
@@ -308,25 +323,33 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.menu.exec(event.screenPos())
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        if event.key() == QtCore.Qt.Key_A:
-            self.auto_align()
-
-        super().keyPressEvent(event)
+        match event.key():
+            case QtCore.Qt.Key_A:
+                self.auto_align()
+            case QtCore.Qt.Key_I:
+                self.set_type_to_image()
+            case QtCore.Qt.Key_T:
+                self.set_type_to_text()
+            case QtCore.Qt.Key_R:
+                self.recognize_text()
+            case QtCore.Qt.Key_Delete:
+                self.scene().removeItem(self)
+            case _:
+                super().keyPressEvent(event)
 
     def auto_align(self) -> None:
+        '''Automatically align box to recognized text'''
         rect = self.engine.estimate(self.get_image())
 
         if self.properties.rect and rect:
-            print(self.properties.rect)
-            print(rect)
-
             final_rect = QtCore.QRect(self.properties.rect.x() + rect.x(), self.properties.rect.y() + rect.y(), rect.width(), rect.height())
             self.properties.rect = final_rect
             self.setRect(final_rect)
 
-    def get_text(self) -> str:
-        '''Run OCR and return text within selection'''
-        return self.engine.read(self.get_image(), self.properties.language.pt2t)
+    def recognize_text(self) -> None:
+        '''Run OCR and update properties with recognized text in selection'''
+        self.properties.text = self.engine.read(self.get_image(), self.properties.language.pt2t)
+        self.scene_.update_property_editor()
 
     def get_image(self) -> QtGui.QPixmap:
         '''Return part of the image within selection'''

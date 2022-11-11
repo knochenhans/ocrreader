@@ -4,7 +4,8 @@ from enum import Enum, auto
 from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from ocrengine import OCREngine
+from ocrengine import OCRBlock, OCREngine, OCREngineManager, OCRWord
+from project import Project
 
 
 class BOX_OCR_PROPERTY_TYPE(Enum):
@@ -12,28 +13,27 @@ class BOX_OCR_PROPERTY_TYPE(Enum):
     IMAGE = auto()
 
 
-class Project():
-    def __init__(self, language=Lang(name='English')):
-        self.language = language
-
-
 class BoxOCRProperties():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_OCR_PROPERTY_TYPE = BOX_OCR_PROPERTY_TYPE.TEXT, text='', language=Lang(name='English')):
+    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_OCR_PROPERTY_TYPE = BOX_OCR_PROPERTY_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_block: OCRBlock = OCRBlock(), words: list = []):
         self.order = order
         self.rect = rect
         self.type = type
         self.text = text
         self.language = language
+        self.recognized = False
+        self.ocr_block = ocr_block
+        self.words = words
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, engine: OCREngine, property_editor, page_image: QtGui.QPixmap) -> None:
+    def __init__(self, engine_manager: OCREngineManager, property_editor, page_image: QtGui.QPixmap, project: Project) -> None:
         super().__init__(parent=None)
         self.box = None
         self.image = page_image
         self.setSceneRect(self.image.rect())
-        self.engine = engine
+        self.engine_manager = engine_manager
         self.box_counter = 0
+        self.project = project
 
         self.property_editor = property_editor
 
@@ -46,7 +46,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
     def addBox(self, rect: QtCore.QRectF):
         '''Add new box and give it an order number'''
-        self.box = Box(rect, self.engine, self)
+        self.box = Box(rect, self.engine_manager, self)
         self.box.properties.order = self.box_counter
         self.box_counter += 1
         self.addItem(self.box)
@@ -104,25 +104,32 @@ class BoxColor():
 
 
 class BoxEditor(QtWidgets.QGraphicsView):
-    def __init__(self, parent, engine: OCREngine, property_editor, page_image_filename: str) -> None:
+    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page_image_filename: str) -> None:
         super().__init__(parent)
 
+        self.project = project
         self.property_editor = property_editor
 
-        self.setScene(BoxEditorScene(engine, self.property_editor, QtGui.QPixmap(page_image_filename)))
+        self.setScene(BoxEditorScene(engine_manager, self.property_editor, QtGui.QPixmap(page_image_filename), self.project))
         self.origin = QtCore.QPoint()
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
+        self.current_scale = 1.0
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
-        '''Handle zooming by mouse'''
+        '''Handle zooming and scrolling by mouse'''
         if event.modifiers() == QtCore.Qt.CTRL:
-            scaleFactor = 1.03
+            scaleFactor = 1.02
             degrees = event.angleDelta().y()
             if degrees > 0:
-                self.scale(scaleFactor, scaleFactor)
+                self.current_scale *= scaleFactor
             else:
-                self.scale(1 / scaleFactor, 1 / scaleFactor)
+                self.current_scale /= scaleFactor
+
+            self.resetTransform()
+            self.scale(self.current_scale, self.current_scale)
+        else:
+            super().wheelEvent(event)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         '''Setup movement by mouse'''
@@ -148,20 +155,30 @@ class BoxEditor(QtWidgets.QGraphicsView):
 class Box(QtWidgets.QGraphicsRectItem):
     text_recognized = QtCore.Signal(str)
 
-    def __init__(self, rect: QtCore.QRectF, engine: OCREngine, scene: BoxEditorScene) -> None:
+    def __init__(self, rect: QtCore.QRectF, engine_manager: OCREngineManager, scene: BoxEditorScene) -> None:
         super().__init__(rect, parent=None)
 
-        self.engine = engine
+        self.engine_manager = engine_manager
         self.scene_ = scene
 
         self.moving = False
 
-        self.number = QtWidgets.QGraphicsSimpleTextItem(self)
+        # Setup order number
+        self.number_widget = QtWidgets.QGraphicsSimpleTextItem(self)
+        self.number_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+
+        # Setup recognition checkmark symbol
+        checkmark = QtGui.QPixmap('resources/icons/check-line.png').scaledToWidth(16, QtCore.Qt.SmoothTransformation)
+        self.recognized_widget = QtWidgets.QGraphicsPixmapItem(checkmark, self)
+        self.recognized_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+        self.recognized_widget.hide()
+
         self.setAcceptHoverEvents(True)
 
         self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
 
         self.properties = BoxOCRProperties()
+        self.properties.language = self.scene_.project.language
 
         self.setRect(rect)
         self.updateProperties()
@@ -259,13 +276,35 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         painter.drawRect(self.rect())
 
+        # TODO: Position not working correctly with ItemIgnoresTransformations
+        # Update ordner number
+        self.number_widget.setText(str(self.properties.order + 1))
+
         pos = self.rect().bottomLeft()
         pos.setX(pos.x() + 5)
-        pos.setY(pos.y() - 20)
-        self.number.setPos(pos)
-        self.number.setText(str(self.properties.order + 1))
+        pos.setY(pos.y() - self.number_widget.boundingRect().height() - 10)
+        br = self.mapToScene(pos)
+        self.number_widget.setPos(self.mapFromScene(br))
 
-        self.update()
+        # Update recognition checkmark
+        if self.properties.recognized:
+            pos = self.rect().bottomLeft()
+            pos.setX(pos.x() + self.number_widget.boundingRect().width() + 5)
+            pos.setY(pos.y() - self.recognized_widget.boundingRect().height() - 10)
+            br = self.mapToScene(pos)
+            self.recognized_widget.setPos(self.mapFromScene(br))
+            self.recognized_widget.show()
+        else:
+            self.recognized_widget.hide()
+
+        # Update word confidence
+        if self.properties.words:
+            painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+
+            for word in self.properties.words:
+                if word.confidence < 90:
+                    painter.setBrush(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
+                    painter.drawRect(word.bbox.translated(self.rect().topLeft().toPoint()))
 
     def hoverMoveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
         '''Show size grips at the box' margin'''
@@ -339,17 +378,32 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def auto_align(self) -> None:
         '''Automatically align box to recognized text'''
-        rect = self.engine.estimate(self.get_image())
+        engine = self.engine_manager.get_current_engine()
 
-        if self.properties.rect and rect:
-            final_rect = QtCore.QRect(self.properties.rect.x() + rect.x(), self.properties.rect.y() + rect.y(), rect.width(), rect.height())
+        block = engine.read(self.get_image(), self.properties.language)
+
+        if block:
+            final_rect = QtCore.QRect(self.properties.rect.x() + block.bbox.x(), self.properties.rect.y() + block.bbox.y(), block.bbox.width(), block.bbox.height())
             self.properties.rect = final_rect
             self.setRect(final_rect)
+            self.properties.recognized = True
+
+        self.scene_.update_property_editor()
+        self.update()
 
     def recognize_text(self) -> None:
         '''Run OCR and update properties with recognized text in selection'''
-        self.properties.text = self.engine.read(self.get_image(), self.properties.language.pt2t)
-        self.scene_.update_property_editor()
+        engine = self.engine_manager.get_current_engine()
+
+        block = engine.read(self.get_image(), self.properties.language)
+
+        if block:
+            self.properties.ocr_block = block
+            self.properties.words = block.get_words()
+            #self.properties.text = block.get_text()
+            self.properties.recognized = True
+            self.scene_.update_property_editor()
+        self.update()
 
     def get_image(self) -> QtGui.QPixmap:
         '''Return part of the image within selection'''

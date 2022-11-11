@@ -1,5 +1,5 @@
 import sys
-from pyocr import PyOCR
+from ocrreader import PyOCR
 from mainwindow import MainWindow
 
 if __name__ == '__main__':

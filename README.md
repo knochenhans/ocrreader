@@ -1,3 +1,3 @@
-# pyocr
+# OCR Reader
 
-Simple attempt at a simple but convenient GUI for Tesseract OCR written in Python.
+Simple but convenient GUI for Tesseract OCR written in Python, based on Qt6.

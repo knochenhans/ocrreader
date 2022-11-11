@@ -1,4 +1,5 @@
 import os
+
 from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -89,9 +90,6 @@ class PagesIconView(QtWidgets.QListView):
         delegate = StyledItemDelegate(self)
         self.setItemDelegate(delegate)
 
-        #model.appendRow(ItemImage('test', '/tmp/amiga/1_tmp.jpg'))
-        # model.appendRow(ItemImage('test', '/tmp/amiga/2_tmp.jpg'))
-
     def getSelectedPageData(self):
         selected_items = self.selectedIndexes()
         if len(selected_items):
@@ -125,8 +123,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setup_actions()
 
         toolbar.addAction(self.open_project_action)
+        toolbar.addAction(self.export_action)
 
         file_menu = menu.addMenu('&File')
+        file_menu.addAction(self.export_action)
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
 
@@ -171,5 +171,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.open_project_action.setStatusTip('Open Project')
         self.open_project_action.triggered.connect(self.open_project)
 
+        self.export_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), "&Export Project", self)
+        self.export_action.setStatusTip('Export Project')
+        self.export_action.triggered.connect(self.export_project)
+
     def open_project(self) -> None:
         pass
+
+    def export_project(self) -> None:
+        self.box_editor.export_odt()

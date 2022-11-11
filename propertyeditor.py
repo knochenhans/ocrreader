@@ -4,7 +4,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from boxeditor import BoxOCRProperties
 from ocrengine import OCREngineManager, OCRBlock, OCRWord
 from project import Project
-# import locale
+import enchant
 
 
 class ProjectPage(QtWidgets.QWidget):
@@ -50,43 +50,19 @@ class PropertyEditor(QtWidgets.QToolBox):
         self.addItem(self.text_edit, 'Recognition')
         self.text_edit.setDisabled(True)
         self.text_edit.setPlaceholderText('No text recognized yet.')
+        self.text_edit.textChanged.connect(self.text_changed)
 
-    def select_box(self, box_properties: BoxOCRProperties):
-        if box_properties.ocr_block.paragraphs:
-            self.text_edit.setEnabled(True)
-            self.text_edit.setDocument(self.get_text(box_properties.ocr_block))
-            self.text_edit.update()
-            self.setCurrentWidget(self.text_edit)
+        self.current_box_properties = None
+    
+    def text_changed(self):
+        if self.current_box_properties:
+            self.current_box_properties.text = self.text_edit.document()
 
-    def get_text(self, ocr_block: OCRBlock) -> QtGui.QTextDocument:
-        document = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(document)
-        format = QtGui.QTextCharFormat()
+    def box_selected(self, box_properties: BoxOCRProperties):
+        # if box_properties.ocr_block.paragraphs:
+        self.current_box_properties = box_properties
+        self.text_edit.setEnabled(True)
+        self.text_edit.setDocument(box_properties.ocr_block.get_text(True))
+        self.text_edit.update()
+        self.setCurrentWidget(self.text_edit)
 
-        for p, paragraph in enumerate(ocr_block.paragraphs):
-            block_format = QtGui.QTextBlockFormat()
-            # block_format.setBottomMargin(15.0)
-            cursor.setBlockFormat(block_format)
-            # TODO: Make this dependent on image DPI
-            format.setFontPointSize(paragraph.get_avg_height())
-            cursor.setCharFormat(format)
-            # cursor.insertBlock(block_format)
-            # cursor.deletePreviousChar()
-
-            for l, line in enumerate(paragraph.lines):
-                for w, word in enumerate(line.words):
-                    if word.confidence < 90:
-                        format.setBackground(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
-                    else:
-                        format.clearBackground()
-                    cursor.setCharFormat(format)
-
-                    cursor.insertText(word.text)
-                    if w < (len(line.words) - 1):
-                        cursor.insertText(' ')
-                if l < (len(paragraph.lines) - 1):
-                    cursor.insertText('\n')
-            if p < (len(ocr_block.paragraphs) - 1):
-                cursor.insertText('\n\n')
-
-        return document

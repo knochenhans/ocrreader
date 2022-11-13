@@ -1,33 +1,14 @@
 import math
-from enum import Enum, auto
 
-from iso639 import Lang
+from odf import style
+from odf import text as odftext
+from odf.opendocument import OpenDocumentText
+from odf.text import P
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from ocrengine import OCRBlock, OCREngine, OCREngineManager, OCRWord
-from project import Project
-
-from odf.opendocument import OpenDocumentText
-from odf import style
-from odf.text import P
-from odf import text as odftext
-
-
-class BOX_OCR_PROPERTY_TYPE(Enum):
-    TEXT = auto()
-    IMAGE = auto()
-
-
-class BoxOCRProperties():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_OCR_PROPERTY_TYPE = BOX_OCR_PROPERTY_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_block: OCRBlock = OCRBlock(), words: list = []):
-        self.order = order
-        self.rect = rect
-        self.type = type
-        self.text = text
-        self.language = language
-        self.recognized = False
-        self.ocr_block = ocr_block
-        self.words = words
+from ocrengine import OCREngineManager
+from project import Page, Project
+from boxproperties import BoxProperties, BOX_PROPERTY_TYPE
 
 
 class BoxColor():
@@ -41,21 +22,32 @@ class BoxColor():
 
 
 class BoxEditor(QtWidgets.QGraphicsView):
-    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page_image_filename: str) -> None:
+    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project) -> None:
         super().__init__(parent)
 
         self.project = project
         self.property_editor = property_editor
-        self.custom_scene = BoxEditorScene(engine_manager, self.property_editor, QtGui.QPixmap(page_image_filename), self.project)
-
+        self.current_page = None
+        self.custom_scene = BoxEditorScene(engine_manager, self.property_editor, self.project, self.current_page)
         self.setScene(self.custom_scene)
         self.origin = QtCore.QPoint()
+        self.current_scale = 1.0
+        
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
-        self.current_scale = 1.0
+        self.setDisabled(True)
 
-    # def scene(self):
-    #     return self.custom_scene
+    def load_page(self, page: Page):
+        self.custom_scene.clear()
+        self.custom_scene.set_page_as_background(page)
+        for page in self.project.pages:
+            for block in page.blocks:
+                box = self.custom_scene.add_box(QtCore.QRectF(block.properties.rect))
+                #box.properties = block.properties
+
+        self.setEnabled(True)
+        self.current_page = page
+        self.custom_scene.page = self.current_page
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         '''Handle zooming and scrolling by mouse'''
@@ -142,7 +134,7 @@ class BoxEditor(QtWidgets.QGraphicsView):
             # if b < (len(boxes) - 1):
             # cursor.insertText('\n\n')
 
-            p = P(text=box.properties.ocr_block.get_text().toPlainText())
+            p = P(text=box.properties.ocr_block.get_text(self.project.default_paper_size).toPlainText())
             textdoc.text.addElement(p)
 
         textdoc.save('/tmp/headers.odt')
@@ -175,8 +167,8 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
 
-        self.properties = BoxOCRProperties()
-        self.properties.language = self.scene_.project.language
+        self.properties = BoxProperties()
+        self.properties.language = self.scene_.project.default_language
 
         self.setRect(rect)
         self.updateProperties()
@@ -262,7 +254,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         '''Paint background and border using colors defined by type and update order number item'''
         color = BoxColor()
 
-        if self.properties.type == BOX_OCR_PROPERTY_TYPE.TEXT:
+        if self.properties.type == BOX_PROPERTY_TYPE.TEXT:
             color = self.color_text
         else:
             color = self.color_image
@@ -307,14 +299,15 @@ class Box(QtWidgets.QGraphicsRectItem):
                     painter.drawRect(word.bbox.translated(self.rect().topLeft().toPoint()))
 
         # Paragraphs
-        paragraphs = self.properties.ocr_block.paragraphs
-        if paragraphs:
-            if len(paragraphs) > 1:
-                for p, paragraph in enumerate(self.properties.ocr_block.paragraphs):
-                    if p > 0:
-                        painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.SolidLine))
-                        rect = paragraph.bbox.translated(self.rect().topLeft().toPoint())
-                        painter.drawLine(rect.topLeft(), rect.topRight())
+        if self.properties.ocr_block:
+            paragraphs = self.properties.ocr_block.paragraphs
+            if paragraphs:
+                if len(paragraphs) > 1:
+                    for p, paragraph in enumerate(self.properties.ocr_block.paragraphs):
+                        if p > 0:
+                            painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.SolidLine))
+                            rect = paragraph.bbox.translated(self.rect().topLeft().toPoint())
+                            painter.drawLine(rect.topLeft(), rect.topRight())
 
     def hoverMoveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
         '''Show size grips at the box' margin'''
@@ -360,7 +353,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.menu.addAction(image_action)
 
-        if self.properties.type == BOX_OCR_PROPERTY_TYPE.TEXT:
+        if self.properties.type == BOX_PROPERTY_TYPE.TEXT:
             read_action = QtGui.QAction('Read')
             read_action.triggered.connect(self.recognize_text)
             self.menu.addAction(read_action)
@@ -373,18 +366,19 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def auto_align(self) -> None:
         '''Automatically align box to recognized text'''
-        engine = self.engine_manager.get_current_engine()
+        # engine = self.engine_manager.get_current_engine()
 
-        block = engine.read(self.get_image(), self.properties.language)
+        # block = engine.read(self.get_image(), self.properties.language)
 
-        if block:
-            final_rect = QtCore.QRect(self.properties.rect.x() + block.bbox.x(), self.properties.rect.y() + block.bbox.y(), block.bbox.width(), block.bbox.height())
-            self.properties.rect = final_rect
-            self.setRect(final_rect)
-            self.properties.recognized = True
+        # if block:
+        #     final_rect = QtCore.QRect(self.properties.rect.x() + block.bbox.x(), self.properties.rect.y() + block.bbox.y(), block.bbox.width(), block.bbox.height())
+        #     self.properties.rect = final_rect
+        #     self.setRect(final_rect)
+        #     self.properties.recognized = True
 
-        self.scene_.update_property_editor()
-        self.update()
+        # self.scene_.update_property_editor()
+        # self.update()
+        pass
 
     def recognize_text(self) -> None:
         '''Delegate recognition to scene in case new box are detected'''
@@ -402,21 +396,23 @@ class Box(QtWidgets.QGraphicsRectItem):
         return image.copy(self.properties.rect)
 
     def set_type_to_text(self) -> None:
-        self.properties.type = BOX_OCR_PROPERTY_TYPE.TEXT
+        self.properties.type = BOX_PROPERTY_TYPE.TEXT
 
     def set_type_to_image(self) -> None:
-        self.properties.type = BOX_OCR_PROPERTY_TYPE.IMAGE
+        self.properties.type = BOX_PROPERTY_TYPE.IMAGE
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, engine_manager: OCREngineManager, property_editor, page_image: QtGui.QPixmap, project: Project) -> None:
+    def __init__(self, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
         super().__init__(parent=None)
-        self.box = None
-        self.image = page_image
-        self.setSceneRect(self.image.rect())
+        self.current_box = None
+
+        self.project = project
+        self.page = page
+        self.image = QtGui.QPixmap()
+        # self.set_page_as_background(0)
         self.engine_manager = engine_manager
         self.box_counter = 0
-        self.project = project
 
         self.property_editor = property_editor
 
@@ -429,12 +425,12 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
     def add_box(self, rect: QtCore.QRectF) -> Box:
         '''Add new box and give it an order number'''
-        self.box = Box(rect, self.engine_manager, self)
-        self.box.properties.order = self.box_counter
+        self.current_box = Box(rect, self.engine_manager, self)
+        self.current_box.properties.order = self.box_counter
         self.box_counter += 1
-        self.addItem(self.box)
+        self.addItem(self.current_box)
         # self.box.text_recognized.connect(self.parent.update_property_editor)
-        return self.box
+        return self.current_box
 
     def remove_box(self, box: Box) -> None:
         self.removeItem(box)
@@ -453,7 +449,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection'''
         engine = self.engine_manager.get_current_engine()
 
-        blocks = engine.read(box.get_image(), box.properties.language)
+        blocks = engine.read(box.get_image(), self.page.px_per_mm, box.properties.language)
 
         if isinstance(blocks, list):
             if len(blocks) > 1:
@@ -463,10 +459,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     new_box = self.add_box(block.bbox.translated(box.rect().topLeft().toPoint()))
                     dist = box.rect().topLeft() - new_box.rect().topLeft()
                     new_box.properties.ocr_block = block
-                    
+
                     # Move paragraph and word boxes accordingly
                     new_box.properties.ocr_block.translate(dist.toPoint())
-                    
+
                     new_box.properties.words = new_box.properties.ocr_block.get_words()
 
                     new_box.properties.recognized = True
@@ -477,7 +473,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     # new_box = self.add_box(block_copy.bbox.translated(box.rect().topLeft().toPoint()))
                     # new_box.properties.ocr_block = block_copy
 
-                    self.box = None
+                    self.current_box = None
 
                 self.remove_box(box)
             else:
@@ -491,7 +487,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Handle adding new box by mouse'''
         if not self.itemAt(event.scenePos(), QtGui.QTransform()):
             if event.buttons() == QtCore.Qt.LeftButton:
-                if not self.box:
+                if not self.current_box:
                     rect = QtCore.QRectF()
                     rect.setTopLeft(event.scenePos())
                     rect.setBottomRight(event.scenePos())
@@ -502,26 +498,32 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         if event.buttons() == QtCore.Qt.LeftButton:
-            if self.box:
-                if self.box:
-                    rect = self.box.rect()
+            if self.current_box:
+                if self.current_box:
+                    rect = self.current_box.rect()
                     rect.setBottomRight(event.scenePos())
-                    self.box.setRect(rect)
+                    self.current_box.setRect(rect)
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Commit changes after drawing box or remove if too small'''
-        if self.box:
-            corner = self.box.rect().topLeft()
+        if self.current_box:
+            corner = self.current_box.rect().topLeft()
             if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
-                self.box.updateProperties()
-                self.box.setSelected(True)
-                self.box.setFocus()
+                self.current_box.updateProperties()
+                self.current_box.setSelected(True)
+                self.current_box.setFocus()
             else:
-                self.remove_box(self.box)
-            self.box = None
+                self.remove_box(self.current_box)
+            self.current_box = None
         super().mouseReleaseEvent(event)
+
+    def set_page_as_background(self, page: Page):
+        self.image = QtGui.QPixmap(page.image_path)
+        self.setSceneRect(self.image.rect())
+        # self.project.current_page_idx = page_number
 
     def drawBackground(self, painter, rect: QtCore.QRectF) -> None:
         '''Setup background image for page'''
-        painter.drawPixmap(self.sceneRect(), self.image, QtCore.QRectF(self.image.rect()))
+        if self.image:
+            painter.drawPixmap(self.sceneRect(), self.image, QtCore.QRectF(self.image.rect()))

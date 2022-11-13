@@ -1,8 +1,8 @@
 from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxeditor import BoxOCRProperties
-from ocrengine import OCREngineManager, OCRBlock, OCRWord
+from boxeditor import BoxProperties
+from ocrengine import OCREngineManager
 from project import Project
 import enchant
 
@@ -32,7 +32,7 @@ class ProjectPage(QtWidgets.QWidget):
         # Lang.
 
     def language_changed(self):
-        self.project.language = Lang(self.lang_combo.currentText())
+        self.project.default_language = Lang(self.lang_combo.currentText())
 
 class PropertyEditor(QtWidgets.QToolBox):
     def __init__(self, parent, engine_manager: OCREngineManager, project: Project):
@@ -58,11 +58,12 @@ class PropertyEditor(QtWidgets.QToolBox):
         if self.current_box_properties:
             self.current_box_properties.text = self.text_edit.document()
 
-    def box_selected(self, box_properties: BoxOCRProperties):
+    def box_selected(self, box_properties: BoxProperties):
         # if box_properties.ocr_block.paragraphs:
         self.current_box_properties = box_properties
         self.text_edit.setEnabled(True)
-        self.text_edit.setDocument(box_properties.ocr_block.get_text(True))
+        if box_properties.ocr_block:
+            self.text_edit.setDocument(box_properties.ocr_block.get_text(True))
         self.text_edit.update()
         self.setCurrentWidget(self.text_edit)
 

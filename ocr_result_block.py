@@ -2,11 +2,11 @@ from PySide6 import QtCore, QtGui
 
 from boxproperties import BoxProperties
 from hocrdata import HOCR_Data
-from ocrparagraph import OCRParagraph
-from ocrword import OCRWord
+from ocr_result_paragraph import OCRResultParagraph
+from ocr_result_word import OCRResultWord
 
 
-class OCRBlock(HOCR_Data):
+class OCRResultBlock(HOCR_Data):
     def __init__(self, image_size: QtCore.QSize, px_per_mm: float, properties: BoxProperties = BoxProperties(), block=None):
         self.paragraphs = []
         self.px_per_mm = px_per_mm
@@ -15,12 +15,12 @@ class OCRBlock(HOCR_Data):
             super().__init__(block['title'])
 
             for p in block.find_all('p', class_='ocr_par'):
-                self.paragraphs.append(OCRParagraph(p))
+                self.paragraphs.append(OCRResultParagraph(p))
 
         # Store box properties from box editor
         self.properties = properties
 
-    def get_words(self) -> list[OCRWord]:
+    def get_words(self) -> list[OCRResultWord]:
         '''Get list of words'''
         words = []
 
@@ -60,8 +60,8 @@ class OCRBlock(HOCR_Data):
                         cursor.setCharFormat(format)
                         cursor.insertText(' ')
                 if l < (len(paragraph.lines) - 1):
-                    cursor.insertText(' ')
-                #     cursor.insertText('\n')
+                    # cursor.insertText(' ')
+                    cursor.insertText('\n')
             if p < (len(self.paragraphs) - 1):
                 cursor.insertText('\n\n')
 

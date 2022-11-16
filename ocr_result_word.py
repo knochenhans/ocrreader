@@ -3,7 +3,7 @@ from PySide6 import QtCore
 from hocrdata import HOCR_Data
 
 
-class OCRWord(HOCR_Data):
+class OCRResultWord(HOCR_Data):
     def __init__(self, word):
         title_data = word['title']
         super().__init__(title_data)

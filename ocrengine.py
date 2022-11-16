@@ -6,7 +6,7 @@ from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui
 
-from ocrblock import OCRBlock
+from ocr_result_block import OCRResultBlock
 
 
 class OCREngine():
@@ -26,28 +26,28 @@ class OCREngine():
 
         return pil_image
 
-    def read_plain_text(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> str | None:
+    def recognize_plain_text(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> str | None:
         return None
 
-    def read(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English')) -> list[OCRBlock] | None:
+    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English')) -> list[OCRResultBlock] | None:
         return None
 
 # TODO: Implement https://github.com/sirfz/tesserocr
 
 
 class OCREngineTesseract(OCREngine):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Tesseract')
         self.languages = pytesseract.get_languages()
-        # self.languages = tesserocr.get_languages()[1]
 
-    def parse_hocr(self, hocr: bytes, image_size: QtCore.QSize, px_per_mm: float) -> list[OCRBlock]:
+    def parse_hocr(self, hocr: bytes, image_size: QtCore.QSize, px_per_mm: float) -> list[OCRResultBlock]:
+        '''Parse box into result block'''
         soup = BeautifulSoup(hocr.decode(), 'html.parser')
 
         blocks = []
 
         for div in soup.find_all('div', class_='ocr_carea'):
-            blocks.append(OCRBlock(image_size, px_per_mm, block=div))
+            blocks.append(OCRResultBlock(image_size, px_per_mm, block=div))
 
         # Add safety margin sometimes needed for correct recognition
         margin = 5
@@ -57,7 +57,7 @@ class OCREngineTesseract(OCREngine):
 
         return blocks
 
-    def read(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English')) -> list[OCRBlock] | None:
+    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English')) -> list[OCRResultBlock] | None:
         # TODO: get dpi from boxarea background
         # image.save('/tmp/1.png')
         # estimate: str = pytesseract.image_to_boxes(self.pixmap_to_pil(image))

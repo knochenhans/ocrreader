@@ -11,6 +11,7 @@ class Page():
         self.name = name
         self.blocks = []
         self.paper_size = paper_size_str
+        self.box_properties = []
 
         if paper_size_str:
             self.px_per_mm = self.calc_px_per_mm(paper_size_str)

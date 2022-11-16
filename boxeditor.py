@@ -1,14 +1,16 @@
 import math
 
+import enchant
+from iso639 import Lang
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText
 from odf.text import P
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from boxproperties import BOX_PROPERTY_TYPE, BoxProperties
 from ocrengine import OCREngineManager
 from project import Page, Project
-from boxproperties import BoxProperties, BOX_PROPERTY_TYPE
 
 
 class BoxColor():
@@ -28,26 +30,30 @@ class BoxEditor(QtWidgets.QGraphicsView):
         self.project = project
         self.property_editor = property_editor
         self.current_page = None
-        self.custom_scene = BoxEditorScene(engine_manager, self.property_editor, self.project, self.current_page)
+        self.custom_scene = BoxEditorScene(self, engine_manager, self.property_editor, self.project, None)
         self.setScene(self.custom_scene)
         self.origin = QtCore.QPoint()
         self.current_scale = 1.0
-        
+
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
         self.setDisabled(True)
 
     def load_page(self, page: Page):
         self.custom_scene.clear()
+        self.custom_scene.box_counter = 0
+        self.custom_scene.current_box = None
         self.custom_scene.set_page_as_background(page)
-        for page in self.project.pages:
-            for block in page.blocks:
-                box = self.custom_scene.add_box(QtCore.QRectF(block.properties.rect))
-                #box.properties = block.properties
 
         self.setEnabled(True)
         self.current_page = page
-        self.custom_scene.page = self.current_page
+        self.custom_scene.current_page = self.current_page
+
+        for box_property in page.box_properties:
+            # Restore existing boxes for this page
+            self.custom_scene.restore_box(box_property)
+
+        self.property_editor.recognition_widget.reset()
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         '''Handle zooming and scrolling by mouse'''
@@ -129,12 +135,12 @@ class BoxEditor(QtWidgets.QGraphicsView):
         textdoc = OpenDocumentText()
 
         for b, box in enumerate(boxes):
-            # cursor.insertHtml(box.properties.ocr_block.get_text().toHtml())
+            # cursor.insertHtml(box.properties.ocr_result_block.get_text().toHtml())
 
             # if b < (len(boxes) - 1):
             # cursor.insertText('\n\n')
 
-            p = P(text=box.properties.ocr_block.get_text(self.project.default_paper_size).toPlainText())
+            p = P(text=box.properties.ocr_result_block.get_text(self.project.default_paper_size).toPlainText())
             textdoc.text.addElement(p)
 
         textdoc.save('/tmp/headers.odt')
@@ -153,11 +159,11 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.moving = False
 
-        # Setup order number
+        # Setup order number for painting
         self.number_widget = QtWidgets.QGraphicsSimpleTextItem(self)
         self.number_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
 
-        # Setup recognition checkmark symbol
+        # Setup recognition checkmark symbol for painting
         checkmark = QtGui.QPixmap('resources/icons/check-line.png').scaledToWidth(16, QtCore.Qt.SmoothTransformation)
         self.recognized_widget = QtWidgets.QGraphicsPixmapItem(checkmark, self)
         self.recognized_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
@@ -299,11 +305,11 @@ class Box(QtWidgets.QGraphicsRectItem):
                     painter.drawRect(word.bbox.translated(self.rect().topLeft().toPoint()))
 
         # Paragraphs
-        if self.properties.ocr_block:
-            paragraphs = self.properties.ocr_block.paragraphs
+        if self.properties.ocr_result_block:
+            paragraphs = self.properties.ocr_result_block.paragraphs
             if paragraphs:
                 if len(paragraphs) > 1:
-                    for p, paragraph in enumerate(self.properties.ocr_block.paragraphs):
+                    for p, paragraph in enumerate(self.properties.ocr_result_block.paragraphs):
                         if p > 0:
                             painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.SolidLine))
                             rect = paragraph.bbox.translated(self.rect().topLeft().toPoint())
@@ -381,7 +387,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         pass
 
     def recognize_text(self) -> None:
-        '''Delegate recognition to scene in case new box are detected'''
+        '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
             button = QtWidgets.QMessageBox.question(self.scene_.parent(), 'Recognize again?', 'Text recognition has already been run for this box. Run again?')
 
@@ -403,12 +409,12 @@ class Box(QtWidgets.QGraphicsRectItem):
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
-        super().__init__(parent=None)
+    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
+        super().__init__(parent)
         self.current_box = None
 
         self.project = project
-        self.page = page
+        self.current_page = page
         self.image = QtGui.QPixmap()
         # self.set_page_as_background(0)
         self.engine_manager = engine_manager
@@ -416,12 +422,29 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         self.property_editor = property_editor
 
+        # Setup connection to property editor
         self.selectionChanged.connect(self.update_property_editor)
+        self.property_editor.recognition_widget.text_edit.editingFinished.connect(self.update_text)
+        self.property_editor.recognition_widget.language_combo.currentTextChanged.connect(self.update_language)
 
-    def update_property_editor(self):
+    def update_text(self) -> None:
+        if len(self.selectedItems()) > 1:
+            button = QtWidgets.QMessageBox.question(self.parent(), 'Edit text of multiple boxes?', 'Multiple boxes are currently selected, do you want to set the current text for all selected box?')
+
+            if button == QtWidgets.QMessageBox.No:
+                return
+        for item in self.selectedItems():
+            item.properties.text = self.property_editor.recognition_widget.text_edit.document()
+            self.update_property_editor()
+
+    def update_language(self, text) -> None:
+        for item in self.selectedItems():
+            item.properties.language = Lang(text)
+
+    def update_property_editor(self) -> None:
         '''Update property editor with the currently selected box'''
-        if self.selectedItems():
-            self.property_editor.box_selected(self.selectedItems()[0].properties)
+        for item in self.selectedItems():
+            self.property_editor.recognition_widget.box_selected(item.properties)
 
     def add_box(self, rect: QtCore.QRectF) -> Box:
         '''Add new box and give it an order number'''
@@ -429,15 +452,27 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.current_box.properties.order = self.box_counter
         self.box_counter += 1
         self.addItem(self.current_box)
+        self.current_page.box_properties.append(self.current_box.properties)
         # self.box.text_recognized.connect(self.parent.update_property_editor)
         return self.current_box
 
+    def restore_box(self, box_properties: BoxProperties) -> Box:
+        '''Restore a box in the editor using box properties stored in the project'''
+        self.current_box = Box(QtCore.QRectF(box_properties.rect), self.engine_manager, self)
+        self.current_box.properties = box_properties
+        self.box_counter += 1
+        self.addItem(self.current_box)
+        return self.current_box
+
     def remove_box(self, box: Box) -> None:
+        '''Remove a box from the editor window and project'''
         self.removeItem(box)
+        self.current_page.box_properties.remove(box.properties)
         #self.box_counter -= 1
 
         # Renumber items
         self.box_counter = 0
+        self.current_box = None
 
         for item in reversed(self.items()):
             if isinstance(item, Box):
@@ -449,36 +484,41 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection'''
         engine = self.engine_manager.get_current_engine()
 
-        blocks = engine.read(box.get_image(), self.page.px_per_mm, box.properties.language)
+        blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language)
 
         if isinstance(blocks, list):
             if len(blocks) > 1:
-                # Multiple text blocks have been recognized within the selection
+
+                new_boxes = []
+
+                # Multiple text blocks have been recognized within the selection, replace original box with new boxes
                 for block in blocks:
                     # Add new blocks at the recognized positions and adjust child elements
-                    new_box = self.add_box(block.bbox.translated(box.rect().topLeft().toPoint()))
+                    new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())))
                     dist = box.rect().topLeft() - new_box.rect().topLeft()
-                    new_box.properties.ocr_block = block
+                    new_box.properties.ocr_result_block = block
 
-                    # Move paragraph and word boxes accordingly
-                    new_box.properties.ocr_block.translate(dist.toPoint())
+                    # Move paragraph lines and word boxes accordingly
+                    new_box.properties.ocr_result_block.translate(dist.toPoint())
 
-                    new_box.properties.words = new_box.properties.ocr_block.get_words()
+                    new_box.properties.words = new_box.properties.ocr_result_block.get_words()
+                    new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
 
                     new_box.properties.recognized = True
                     new_box.update()
 
-                    # TODO: Check if copying might be necessary
-                    # lock_copy = copy.copy(block)
-                    # new_box = self.add_box(block_copy.bbox.translated(box.rect().topLeft().toPoint()))
-                    # new_box.properties.ocr_block = block_copy
-
                     self.current_box = None
 
+                    new_boxes.append(new_box)
+
+                # Remove original box
                 self.remove_box(box)
+
+                new_boxes[0].setSelected(True)
             else:
-                box.properties.ocr_block = blocks[0]
+                box.properties.ocr_result_block = blocks[0]
                 box.properties.words = blocks[0].get_words()
+                box.properties.text = blocks[0].get_text(True)
                 box.properties.recognized = True
             self.update_property_editor()
             box.update()

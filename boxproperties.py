@@ -10,12 +10,12 @@ class BOX_PROPERTY_TYPE(Enum):
 
 
 class BoxProperties():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_PROPERTY_TYPE = BOX_PROPERTY_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_block=None, words: list = []):
+    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_PROPERTY_TYPE = BOX_PROPERTY_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=None, words: list = []):
         self.order = order
         self.rect = rect
         self.type = type
         self.text = text
         self.language = language
         self.recognized = False
-        self.ocr_block = ocr_block
+        self.ocr_result_block = ocr_result_block
         self.words = words

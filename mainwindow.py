@@ -114,6 +114,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.resize(1200, 800)
         self.showMaximized()
         self.setWindowTitle('PyOCR')
+        self.setWindowIcon(QtGui.QIcon('resources/icons/character-recognition-line.png'))
         self.show()
 
         toolbar = QtWidgets.QToolBar('Toolbar')
@@ -121,6 +122,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addToolBar(toolbar)
 
         self.setStatusBar(QtWidgets.QStatusBar(self))
+
+        self.setAcceptDrops(True)
 
         menu = self.menuBar()
 
@@ -199,7 +202,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.load_image_action.setShortcut(QtGui.QKeySequence('Ctrl+i'))
 
     def page_selected(self, index: QtCore.QModelIndex):
-        self.box_editor.load_page(index.data(QtCore.Qt.UserRole))
+        if self.box_editor.current_page != index.data(QtCore.Qt.UserRole):
+            self.box_editor.load_page(index.data(QtCore.Qt.UserRole))
 
     def load_image_dialog(self) -> None:
         filenames = QtWidgets.QFileDialog.getOpenFileNames(parent=self, caption='Open images', filter='Image files (*.jpg *.png *.gif *.bmp *.ppm)')
@@ -238,3 +242,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_project(self) -> None:
         self.box_editor.export_odt()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            # filenames = []
+
+            for url in event.mimeData().urls():
+                # filenames.append(url.toLocalFile())
+                self.load_image(url.toLocalFile())

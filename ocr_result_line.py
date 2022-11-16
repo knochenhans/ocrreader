@@ -1,10 +1,10 @@
 from PySide6 import QtCore
 
 from hocrdata import HOCR_Data
-from ocrword import OCRWord
+from ocr_result_word import OCRResultWord
 
 
-class OCRLine(HOCR_Data):
+class OCRResultLine(HOCR_Data):
     def __init__(self, line):
         title_data = line['title']
         super().__init__(title_data)
@@ -24,7 +24,7 @@ class OCRLine(HOCR_Data):
                 self.baseline = (float(tokens[1]), int(tokens[2]))
 
         for word in line.find_all('span', class_='ocrx_word'):
-            self.words.append(OCRWord(word))
+            self.words.append(OCRResultWord(word))
 
     def translate(self, distance: QtCore.QPoint):
         '''Translate coordinates by a distance'''

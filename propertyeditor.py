@@ -1,4 +1,5 @@
 import re
+from string import punctuation
 import enchant
 from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -84,6 +85,95 @@ class RecognitionPage(QtWidgets.QWidget):
         self.text_edit.blockSignals(False)
 
         self.current_box_properties = None
+
+    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+        match e.key():
+            case QtCore.Qt.Key_F7:
+                self.removeHyphens()
+        return super().keyPressEvent(e)
+
+    def removeHyphens(self) -> None:
+        document = self.text_edit.document()
+
+        lang_code: str = Lang(self.language_combo.currentText()).pt1
+
+        enchant_ = enchant.Dict(lang_code + '_' + lang_code.upper())
+
+        paragraphs = []
+
+        lines = []
+
+        block = document.begin()
+
+        while block.isValid():
+
+            line_fragments = []
+
+            # Iterate over fragments
+            # TODO: QTextBlock doesn’t offer Qt’s internal iterator facilities for some reason, use Python iterators
+            try:
+                frag_it = next(block.begin())
+            except (StopIteration):
+                # End of paragraph detected
+                paragraphs.append(lines)
+                lines = []
+            else:
+                for i in frag_it:
+                    line_fragments.append(i.fragment())
+                    # print(i.fragment().text())
+                    # cursor.insertText()
+                    next(i)
+
+            if line_fragments:
+                lines.append(line_fragments)
+            block = block.next()
+
+        if lines:
+            paragraphs.append(lines)
+
+        new_document = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(new_document)
+
+        last_word = ''
+
+        for p, paragraph in enumerate(paragraphs):
+            for l, line in enumerate(paragraph):
+                for f, fragment in enumerate(line):
+                    text: str = fragment.text().strip()
+
+                    if last_word:
+                        if text[0].islower():
+                            (first_word, a, b) = text.partition(' ')
+
+                            if enchant_.check((last_word + first_word).strip(punctuation + '»«›‹„“”')):
+                                text = last_word + first_word
+                            else:
+                                text = last_word + '-' + first_word
+
+                            text += a + b
+                        else:
+                            text = last_word + '-' + text
+                        last_word = ''
+
+                    if f == len(line) - 1:
+                        if text[-1] == '-':
+                            (a, b, last_word) = text[:-1].rpartition(' ')
+                            text = a
+
+                    if text:
+                        cursor.insertText(text)
+
+                        if l < len(paragraph) - 1 or f < len(line) - 1 or last_word:
+                            cursor.insertText(' ')
+            # Preserve last hyphenated word
+            if last_word:
+                cursor.insertText(last_word + '-')
+
+            if p < len(paragraphs) - 1:
+                cursor.insertText('\n\n')
+
+        self.text_edit.setDocument(new_document)
+        self.update()
 
 
 class PropertyEditor(QtWidgets.QToolBox):

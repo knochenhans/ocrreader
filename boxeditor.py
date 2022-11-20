@@ -42,7 +42,7 @@ class BoxEditor(QtWidgets.QGraphicsView):
     def load_page(self, page: Page):
         self.custom_scene.clear()
         self.custom_scene.box_counter = 0
-        self.custom_scene.current_box = None
+        # self.custom_scene.current_box = None
         self.custom_scene.set_page_as_background(page)
 
         self.setEnabled(True)
@@ -52,6 +52,9 @@ class BoxEditor(QtWidgets.QGraphicsView):
         for box_property in page.box_properties:
             # Restore existing boxes for this page
             self.custom_scene.restore_box(box_property)
+
+        # TODO: Check if there’s a way to avoid checking current_box to find out if box is resized
+        self.custom_scene.current_box = None
 
         self.property_editor.recognition_widget.reset()
 
@@ -110,6 +113,10 @@ class BoxEditor(QtWidgets.QGraphicsView):
             case QtCore.Qt.Key_Delete:
                 for box in boxes:
                     self.scene().remove_box(box)
+            # case QtCore.Qt.Key_Tab:
+            #     for box in boxes:
+            #         self.scene().remove_box(box)
+                # pass
             case _:
                 super().keyPressEvent(event)
 
@@ -131,7 +138,7 @@ class BoxEditor(QtWidgets.QGraphicsView):
         # text = QtGui.QTextDocument()
         # cursor = QtGui.QTextCursor(text)
 
-        boxes = self.get_boxes(False)
+        boxes = self.get_boxes()
 
         textdoc = OpenDocumentText()
 
@@ -390,7 +397,8 @@ class Box(QtWidgets.QGraphicsRectItem):
     def recognize_text(self) -> None:
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
-            button = QtWidgets.QMessageBox.question(self.scene_.parent(), 'Recognize again?', 'Text recognition has already been run for this box. Run again?')
+            button = QtWidgets.QMessageBox.question(self.scene_.parent(), self.scene_.tr('Recognize again?', 'dialog_recognize_again_title'),
+                                                    self.scene_.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.Yes:
                 self.scene_.recognize_box(self)
@@ -404,9 +412,11 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def set_type_to_text(self) -> None:
         self.properties.type = BOX_PROPERTY_TYPE.TEXT
+        self.update()
 
     def set_type_to_image(self) -> None:
         self.properties.type = BOX_PROPERTY_TYPE.IMAGE
+        self.update()
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
@@ -423,14 +433,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         self.property_editor = property_editor
 
-        # Setup connection to property editor
+        # Setup connection to and from property editor
         self.selectionChanged.connect(self.update_property_editor)
         self.property_editor.recognition_widget.text_edit.editingFinished.connect(self.update_text)
         self.property_editor.recognition_widget.language_combo.currentTextChanged.connect(self.update_language)
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:
-            button = QtWidgets.QMessageBox.question(self.parent(), 'Edit text of multiple boxes?', 'Multiple boxes are currently selected, do you want to set the current text for all selected box?')
+            button = QtWidgets.QMessageBox.question(self.parent(), self.tr('Edit text of multiple boxes?', 'dialog_multiple_boxes_edit_title'), self.tr(
+                'Multiple boxes are currently selected, do you want to set the current text for all selected box?', 'dialog_multiple_boxes_edit'))
 
             if button == QtWidgets.QMessageBox.No:
                 return
@@ -460,6 +471,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def restore_box(self, box_properties: BoxProperties) -> Box:
         '''Restore a box in the editor using box properties stored in the project'''
         self.current_box = Box(QtCore.QRectF(box_properties.rect), self.engine_manager, self)
+        # print('restore: ' + box_properties.test.toPlainText())
+        #print('restore: ' + box_properties.text.toPlainText())
         self.current_box.properties = box_properties
         self.box_counter += 1
         self.addItem(self.current_box)
@@ -520,9 +533,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 box.properties.ocr_result_block = blocks[0]
                 box.properties.words = blocks[0].get_words()
                 box.properties.text = blocks[0].get_text(True)
+                # box.properties.test = blocks[0].get_text(True)
                 box.properties.recognized = True
-            self.update_property_editor()
             box.update()
+            self.update_property_editor()
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''
@@ -540,10 +554,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         if event.buttons() == QtCore.Qt.LeftButton:
             if self.current_box:
-                if self.current_box:
-                    rect = self.current_box.rect()
-                    rect.setBottomRight(event.scenePos())
-                    self.current_box.setRect(rect)
+                rect = self.current_box.rect()
+                rect.setBottomRight(event.scenePos())
+                self.current_box.setRect(rect)
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
@@ -558,6 +571,38 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 self.remove_box(self.current_box)
             self.current_box = None
         super().mouseReleaseEvent(event)
+
+    def items(self, order=False) -> list[Box]:
+        items = super().items()
+
+        items_boxes = []
+
+        for item in items:
+            if isinstance(item, Box):
+                items_boxes.append(item)
+
+        return sorted(items_boxes, key=lambda x: x.properties.order)
+
+    def focusNextPrevChild(self, next: bool) -> bool:
+        current_item = self.selectedItems()[0]
+        next_item_order = current_item
+        step = 0
+
+        if isinstance(current_item, Box):
+            if next:
+                step = 1
+            else:
+                step = -1
+
+            next_item_order = (current_item.properties.order + step) % len(self.items())
+
+        for item in self.items():
+            if next_item_order == item.properties.order:
+                self.clearSelection()
+                item.setSelected(True)
+                item.setFocus()
+
+        return True
 
     def set_page_as_background(self, page: Page):
         self.image = QtGui.QPixmap(page.image_path)

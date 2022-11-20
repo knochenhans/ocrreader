@@ -57,13 +57,8 @@ class RecognitionPage(QtWidgets.QWidget):
 
         self.text_edit = TextEditor(self, project)
         self.text_edit.setAcceptRichText(True)
-        # self.text_edit.textChanged.connect(self.text_changed)
         layout.addWidget(self.text_edit)
         self.reset()
-
-    # def text_changed(self):
-    #     if self.current_box_properties:
-    #         self.current_box_properties.text = self.text_edit.document()
 
     def box_selected(self, box_properties: BoxProperties) -> None:
         # if box_properties.ocr_result_block.paragraphs:

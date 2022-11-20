@@ -4,6 +4,8 @@ from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui
 
+from boxproperties import BoxProperties
+
 
 class Page():
     def __init__(self, image_path: str = '', name: str = '', paper_size_str: str = ''):
@@ -16,7 +18,7 @@ class Page():
         if paper_size_str:
             self.px_per_mm = self.calc_px_per_mm(paper_size_str)
         else:
-            self.px_per_mm = 0
+            self.px_per_mm = 0.0
 
     def calc_px_per_mm(self, paper_size: str) -> float:
         # TODO: Lets assume 1:1 pixel ratio for now, so ignore height
@@ -28,12 +30,26 @@ class Page():
     def write(self, file: QtCore.QDataStream):
         file.writeString(self.image_path)
         file.writeString(self.name)
-        file.writeQVariant(self.paper_size)
+        file.writeString(self.paper_size)
+        file.writeFloat(self.px_per_mm)
+
+        file.writeInt16(len(self.box_properties))
+
+        for box_properties in self.box_properties:
+            box_properties.write(file)
 
     def read(self, file: QtCore.QDataStream):
         self.image_path = file.readString()
-        self.name = file.readString()
-        self.paper_size = file.readQVariant()
+        self.name = file.readString() 
+        self.paper_size = file.readString()
+        self.px_per_mm = file.readFloat()
+
+        box_properties_count = file.readInt16()
+
+        for b in range(box_properties_count):
+            box_property = BoxProperties()
+            box_property.read(file)
+            self.box_properties.append(box_property)
 
 
 class Project():
@@ -70,4 +86,4 @@ class Project():
         for p in range(page_count):
             page = Page()
             page.read(file)
-            self.pages.append(page)
+            self.add_page(page)

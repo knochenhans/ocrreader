@@ -5,12 +5,17 @@ from ocr_result_line import OCRResultLine
 
 
 class OCRResultParagraph(HOCR_Data):
-    def __init__(self, paragraph):
-        super().__init__(paragraph['title'])
+    def __init__(self, paragraph=None):
         self.lines = []
 
-        for line in paragraph.find_all('span', class_='ocr_line'):
-            self.lines.append(OCRResultLine(line))
+        if paragraph:
+            super().__init__(paragraph['title'])
+
+            for line in paragraph.find_all('span', class_='ocr_line'):
+                self.lines.append(OCRResultLine(line))
+
+        else:
+            super().__init__()
 
     def get_avg_height(self) -> int:
         sum_height = 0
@@ -27,3 +32,21 @@ class OCRResultParagraph(HOCR_Data):
 
         for line in self.lines:
             line.translate(distance)
+
+    def write(self, file: QtCore.QDataStream):
+        file.writeQVariant(self.bbox)
+
+        file.writeInt16(len(self.lines))
+
+        for line in self.lines:
+            line.write(file)
+
+    def read(self, file: QtCore.QDataStream):
+        self.bbox = file.readQVariant()
+
+        line_count = file.readInt16()
+
+        for l in range(line_count):
+            line = OCRResultLine()
+            line.read(file)
+

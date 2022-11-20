@@ -57,7 +57,8 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         '''Handle zooming and scrolling by mouse'''
-        if event.modifiers() == QtCore.Qt.CTRL:
+
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
             scaleFactor = 1.02
             degrees = event.angleDelta().y()
             if degrees > 0:

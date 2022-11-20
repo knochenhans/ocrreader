@@ -71,7 +71,9 @@ class RecognitionPage(QtWidgets.QWidget):
         self.text_edit.setEnabled(True)
         # if box_properties.ocr_result_block:
         #     self.text_edit.setDocument(box_properties.ocr_result_block.get_text(True))
-        self.text_edit.setDocument(box_properties.text)
+
+        # Clone document, as text_edit will take ownership
+        self.text_edit.setDocument(box_properties.text.clone())
         self.text_edit.update()
 
     def reset(self) -> None:

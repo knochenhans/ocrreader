@@ -130,6 +130,7 @@ class RecognitionPage(QtWidgets.QWidget):
 
         new_document = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(new_document)
+        format = QtGui.QTextCharFormat()
 
         last_word = ''
 
@@ -137,6 +138,11 @@ class RecognitionPage(QtWidgets.QWidget):
             for l, line in enumerate(paragraph):
                 for f, fragment in enumerate(line):
                     text: str = fragment.text().strip()
+
+                    block_format = QtGui.QTextBlockFormat()
+
+                    format = fragment.charFormat()
+                    cursor.setCharFormat(format)
 
                     if last_word:
                         if text[0].islower():

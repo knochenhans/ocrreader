@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     translator = QtCore.QTranslator()
 
-    if translator.load('mainwindow_de'):
+    if translator.load(QtCore.QLocale().system(), 'ocrreader', '_', '.'):
         QtCore.QCoreApplication.installTranslator(translator)
 
     window = MainWindow()

@@ -47,6 +47,19 @@ class OCRResultBlock(HOCR_Data):
                 words += l.words
         return words
 
+    def get_avg_confidence(self) -> float:
+        confidence = 0
+        avg_confidence = confidence
+
+        words = self.get_words()
+
+        if words:
+            for word in words:
+                confidence += word.confidence
+            avg_confidence = confidence / len(words)
+
+        return avg_confidence
+
     def get_text(self, diagnostics: bool = False) -> QtGui.QTextDocument:
         '''Get text as QTextDocument'''
         document = QtGui.QTextDocument()
@@ -54,34 +67,35 @@ class OCRResultBlock(HOCR_Data):
         format = QtGui.QTextCharFormat()
 
         for p, paragraph in enumerate(self.paragraphs):
-            block_format = QtGui.QTextBlockFormat()
-            # block_format.setBottomMargin(15.0)
-            cursor.setBlockFormat(block_format)
+            if paragraph.lines:
+                block_format = QtGui.QTextBlockFormat()
+                # block_format.setBottomMargin(15.0)
+                cursor.setBlockFormat(block_format)
 
-            height = self.px_per_mm * paragraph.get_avg_height() * 3
+                height = self.px_per_mm * paragraph.get_avg_height() * 3
 
-            format.setFontPointSize(round(height))
-            cursor.setCharFormat(format)
-            # cursor.insertBlock(block_format)
-            # cursor.deletePreviousChar()
+                format.setFontPointSize(round(height))
+                cursor.setCharFormat(format)
+                # cursor.insertBlock(block_format)
+                # cursor.deletePreviousChar()
 
-            for l, line in enumerate(paragraph.lines):
-                for w, word in enumerate(line.words):
-                    if diagnostics:
-                        if word.confidence < 90:
-                            format.setBackground(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
-                        cursor.setCharFormat(format)
+                for l, line in enumerate(paragraph.lines):
+                    for w, word in enumerate(line.words):
+                        if diagnostics:
+                            if word.confidence < 90:
+                                format.setBackground(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
+                            cursor.setCharFormat(format)
 
-                    cursor.insertText(word.text)
-                    if w < (len(line.words) - 1):
+                        cursor.insertText(word.text)
                         format.clearBackground()
                         cursor.setCharFormat(format)
-                        cursor.insertText(' ')
-                if l < (len(paragraph.lines) - 1):
-                    # cursor.insertText(' ')
-                    cursor.insertText('\n')
-            if p < (len(self.paragraphs) - 1):
-                cursor.insertText('\n\n')
+                        if w < (len(line.words) - 1):
+                            cursor.insertText(' ')
+                    if l < (len(paragraph.lines) - 1):
+                        # cursor.insertText(' ')
+                        cursor.insertText('\n')
+                if p < (len(self.paragraphs) - 1):
+                    cursor.insertText('\n\n')
 
         return document
 

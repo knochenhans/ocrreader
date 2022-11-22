@@ -1,6 +1,8 @@
 import math
 
+import cv2
 import enchant
+import numpy
 from iso639 import Lang
 from odf import style
 from odf import text as odftext
@@ -58,6 +60,9 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
         self.property_editor.recognition_widget.reset()
 
+    def scene(self):
+        return self.custom_scene
+
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         '''Handle zooming and scrolling by mouse'''
 
@@ -78,11 +83,21 @@ class BoxEditor(QtWidgets.QGraphicsView):
         '''Setup movement by mouse'''
         if event.buttons() == QtCore.Qt.MiddleButton:
             self.origin = event.pos()
+        elif event.buttons() == QtCore.Qt.RightButton:
+            self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
 
         super().mousePressEvent(event)
 
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.buttons() == QtCore.Qt.RightButton:
+            self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+            self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
+        return super().mouseReleaseEvent(event)
+
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         '''Handle movement by mouse'''
+        if event.buttons() == QtCore.Qt.RightButton:
+            self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
         if event.buttons() == QtCore.Qt.MiddleButton:
             oldPoint = self.mapToScene(self.origin)
             newPoint = self.mapToScene(event.pos())
@@ -98,27 +113,33 @@ class BoxEditor(QtWidgets.QGraphicsView):
         # Get selected boxes:
         boxes = self.get_boxes(True)
 
-        match event.key():
-            # case QtCore.Qt.Key_A:
-            #     self.auto_align()
-            case QtCore.Qt.Key_I:
-                for box in boxes:
-                    box.set_type_to_image()
-            case QtCore.Qt.Key_T:
-                for box in boxes:
-                    box.set_type_to_text()
-            case QtCore.Qt.Key_R:
-                for box in boxes:
-                    box.recognize_text()
-            case QtCore.Qt.Key_Delete:
-                for box in boxes:
-                    self.scene().remove_box(box)
-            # case QtCore.Qt.Key_Tab:
-            #     for box in boxes:
-            #         self.scene().remove_box(box)
-                # pass
-            case _:
-                super().keyPressEvent(event)
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
+            match event.key():
+                case QtCore.Qt.Key_A:
+                    for box in self.items():
+                        box.setSelected(True)
+                case _:
+                    super().keyPressEvent(event)
+
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
+            match event.key():
+                case QtCore.Qt.Key_A:
+                    for box in boxes:
+                        box.auto_align()
+                case QtCore.Qt.Key_I:
+                    for box in boxes:
+                        box.set_type_to_image()
+                case QtCore.Qt.Key_T:
+                    for box in boxes:
+                        box.set_type_to_text()
+                case QtCore.Qt.Key_R:
+                    for box in boxes:
+                        box.recognize_text()
+                case QtCore.Qt.Key_Delete:
+                    for box in boxes:
+                        self.scene().remove_box(box)
+                case _:
+                    super().keyPressEvent(event)
 
     def get_boxes(self, only_selected: bool = False) -> list:
         boxes = []
@@ -155,6 +176,37 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
         # print(text.toPlainText())
 
+    def pixmap_to_cv2(self, pixmap: QtGui.QPixmap):
+        image = pixmap.toImage().copy()
+
+        # TODO: Works for now but a bit dirty, investigate further
+        return numpy.array(image.bits()).reshape((image.height(), image.width(), 4))
+
+    def analyze_layout(self) -> list:
+        # TODO: Check for actual page
+        new_boxes = []
+        if self.scene().image:
+            image = self.pixmap_to_cv2(self.scene().image)
+
+            # ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+            ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 100, 255, cv2.THRESH_BINARY_INV)
+
+            kernel = numpy.ones((5, 5), 'uint8')
+            margin_img = cv2.dilate(th1, kernel, iterations=5)
+
+            # cv2.imshow("test", margin_img)
+
+            (contours, _) = cv2.findContours(margin_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            for cnt in reversed(contours):
+                x, y, w, h = cv2.boundingRect(cnt)
+
+                box = QtCore.QRectF(x, y, w, h)
+
+                new_boxes.append(self.scene().add_box(box))
+                self.scene().current_box = None
+        return new_boxes
+
 
 class Box(QtWidgets.QGraphicsRectItem):
     text_recognized = QtCore.Signal(str)
@@ -163,7 +215,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         super().__init__(rect, parent=None)
 
         self.engine_manager = engine_manager
-        self.scene_ = scene
+        self.custom_scene = scene
 
         self.moving = False
 
@@ -182,7 +234,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
 
         self.properties = BoxProperties()
-        self.properties.language = self.scene_.project.default_language
+        self.properties.language = self.custom_scene.project.default_language
 
         self.setRect(rect)
         self.updateProperties()
@@ -221,6 +273,9 @@ class Box(QtWidgets.QGraphicsRectItem):
         pen_image_selected = QtGui.QPen(QtGui.QColor(227, 35, 35, 255))
 
         self.color_image = BoxColor(brush_image, pen_image, brush_image_selected, pen_image_selected)
+
+    def scene(self):
+        return self.custom_scene
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle scaling via mouse'''
@@ -379,7 +434,55 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.menu.exec(event.screenPos())
 
     def auto_align(self) -> None:
-        '''Automatically align box to recognized text'''
+        '''Automatically align box to content'''
+
+        new_rect = self.rect()
+
+        if self.type == BOX_PROPERTY_TYPE.TEXT:
+            pass
+        else:
+            image = self.get_image().toImage().copy()
+
+            # TODO: Works for now but a bit dirty, investigate further
+            img = numpy.array(image.bits()).reshape((image.height(), image.width(), 4))
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            thresh_inv = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)[1]
+
+            # Blur the image
+            blur = cv2.GaussianBlur(thresh_inv, (1, 1), 0)
+
+            thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)[1]
+
+            # find contours
+            contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+
+            # mask = numpy.ones(img.shape[:2], dtype="uint8") * 255
+
+            for c in contours:
+                # get the bounding rect
+                x, y, w, h = cv2.boundingRect(c)
+                # rect = QtCore.QRectF(x, y, w, h)
+
+                new_rect = self.rect().translated(QtCore.QPointF(x, y))
+                new_rect.setWidth(w)
+                new_rect.setHeight(h)
+
+        self.setRect(new_rect)
+        self.update()
+
+        #     if w*h>1000:
+        #         cv2.rectangle(mask, (x, y), (x+w, y+h), (0, 0, 255), -1)
+
+        # res_final = cv2.bitwise_and(img, img, mask=cv2.bitwise_not(mask))
+
+        # cv2.imshow("boxes", mask)
+        # # cv2.imshow('test', gray)
+        # cv2.imshow("final image", res_final)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         # engine = self.engine_manager.get_current_engine()
 
         # block = engine.read(self.get_image(), self.properties.language)
@@ -397,17 +500,17 @@ class Box(QtWidgets.QGraphicsRectItem):
     def recognize_text(self) -> None:
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
-            button = QtWidgets.QMessageBox.question(self.scene_.parent(), self.scene_.tr('Recognize again?', 'dialog_recognize_again_title'),
-                                                    self.scene_.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+            button = QtWidgets.QMessageBox.question(self.custom_scene.parent(), self.custom_scene.tr('Recognize again?', 'dialog_recognize_again_title'),
+                                                    self.custom_scene.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.Yes:
-                self.scene_.recognize_box(self)
+                self.scene().recognize_box(self)
         else:
-            self.scene_.recognize_box(self)
+            self.scene().recognize_box(self)
 
     def get_image(self) -> QtGui.QPixmap:
         '''Return part of the image within selection'''
-        image: QtGui.QPixmap = self.scene_.image
+        image: QtGui.QPixmap = self.custom_scene.image
         return image.copy(self.properties.rect)
 
     def set_type_to_text(self) -> None:
@@ -416,6 +519,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def set_type_to_image(self) -> None:
         self.properties.type = BOX_PROPERTY_TYPE.IMAGE
+        self.auto_align()
         self.update()
 
 
@@ -495,48 +599,72 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 item.update()
 
     def recognize_box(self, box: Box):
-        '''Run OCR for box and update properties with recognized text in selection'''
+        '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
         blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language)
 
-        if isinstance(blocks, list):
-            if len(blocks) > 1:
+        is_image = False
 
+        if isinstance(blocks, list):
+            if len(blocks) == 1:
+                block = blocks[0]
+
+                if block.get_avg_confidence() > 30:
+                    box.properties.ocr_result_block = block
+                    box.properties.words = block.get_words()
+                    box.properties.text = block.get_text(True)
+                    # box.properties.test = blocks[0].get_text(True)
+                    box.properties.recognized = True
+                else:
+                    is_image = True
+            elif len(blocks) > 1:
                 new_boxes = []
 
                 # Multiple text blocks have been recognized within the selection, replace original box with new boxes
+
+                added_boxes = 0
+
                 for block in blocks:
-                    # Add new blocks at the recognized positions and adjust child elements
-                    new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())))
-                    dist = box.rect().topLeft() - new_box.rect().topLeft()
-                    new_box.properties.ocr_result_block = block
+                    # Skip blocks with bad confidence (might be an image)
+                    # TODO: Find a good threshold
+                    if block.get_avg_confidence() > 30:
 
-                    # Move paragraph lines and word boxes accordingly
-                    new_box.properties.ocr_result_block.translate(dist.toPoint())
+                        # Add new blocks at the recognized positions and adjust child elements
+                        new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())))
+                        dist = box.rect().topLeft() - new_box.rect().topLeft()
+                        new_box.properties.ocr_result_block = block
 
-                    new_box.properties.words = new_box.properties.ocr_result_block.get_words()
-                    new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
+                        # Move paragraph lines and word boxes accordingly
+                        new_box.properties.ocr_result_block.translate(dist.toPoint())
 
-                    new_box.properties.recognized = True
-                    new_box.update()
+                        new_box.properties.words = new_box.properties.ocr_result_block.get_words()
+                        new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
 
-                    self.current_box = None
+                        new_box.properties.recognized = True
+                        new_box.update()
 
-                    new_boxes.append(new_box)
+                        self.current_box = None
 
-                # Remove original box
-                self.remove_box(box)
+                        new_boxes.append(new_box)
+                        added_boxes += 1
 
-                new_boxes[0].setSelected(True)
+                if added_boxes > 0:
+                    # Remove original box
+                    self.remove_box(box)
+
+                    new_boxes[0].setSelected(True)
+                else:
+                    is_image = True
             else:
-                box.properties.ocr_result_block = blocks[0]
-                box.properties.words = blocks[0].get_words()
-                box.properties.text = blocks[0].get_text(True)
-                # box.properties.test = blocks[0].get_text(True)
-                box.properties.recognized = True
-            box.update()
-            self.update_property_editor()
+                is_image = True
+
+        if is_image:
+            # The original box is probably an image
+            box.set_type_to_image()
+
+        box.update()
+        self.update_property_editor()
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''

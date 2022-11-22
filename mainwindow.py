@@ -136,8 +136,10 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(self.open_project_action)
         toolbar.addAction(self.save_project_action)
         toolbar.addAction(self.export_action)
+        toolbar.addAction(self.analyze_layout_action)
+        toolbar.addAction(self.analyze_layout_and_recognize_action)
 
-        file_menu = menu.addMenu(self.tr('&File', 'menu_file'))
+        file_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&File', 'menu_file'))
         file_menu.addAction(self.load_image_action)
         file_menu.addAction(self.open_project_action)
         file_menu.addAction(self.save_project_action)
@@ -170,7 +172,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.box_editor = BoxEditor(self, self.engine_manager, self.property_editor, self.project)
         self.box_editor.property_editor = self.property_editor
         self.box_editor.setMinimumWidth(500)
-        self.property_editor.box_editor = self.box_editor
+        # self.property_editor.box_editor = self.box_editor
         self.property_editor.setMinimumWidth(200)
 
         self.splitter_2.addWidget(self.box_editor)
@@ -207,6 +209,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.load_image_action.triggered.connect(self.load_image_dialog)
         self.load_image_action.setShortcut(QtGui.QKeySequence('Ctrl+i'))
 
+        self.analyze_layout_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-line.png'), self.tr('&Analyze Layout', 'action_analyze_layout'), self)
+        self.analyze_layout_action.setStatusTip(self.tr('Analyze Layout', 'status_analyze_layout'))
+        self.analyze_layout_action.triggered.connect(self.analyze_layout)
+        self.analyze_layout_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+a'))
+
+        self.analyze_layout_and_recognize_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-fill.png'), self.tr('Analyze Layout and &Recognize', 'action_analyze_layout_and_recognize'), self)
+        self.analyze_layout_and_recognize_action.setStatusTip(self.tr('Analyze Layout and Recognize', 'status_analyze_layout_and_recognize'))
+        self.analyze_layout_and_recognize_action.triggered.connect(self.analyze_layout_and_recognize)
+        self.analyze_layout_and_recognize_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+r'))
+
     def page_selected(self, index: QtCore.QModelIndex):
         if self.box_editor.current_page == index.data(QtCore.Qt.UserRole):
             return
@@ -223,7 +235,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for filename in filenames[0]:
             pages.append(self.load_image(filename))
 
-        if filenames:
+        if filenames[1]:
             # Load first page
             self.box_editor.load_page(pages[0])
 
@@ -299,7 +311,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_project(self) -> None:
         self.box_editor.export_odt()
 
-        self.statusBar().showMessage(self.tr('status_exported', 'Project exported'))
+        self.statusBar().showMessage(self.tr('Project exported', 'status_exported'))
+
+    def analyze_layout(self) -> None:
+        self.box_editor.analyze_layout()
+
+    def analyze_layout_and_recognize(self) -> None:
+        boxes = self.box_editor.analyze_layout()
+
+        for box in boxes:
+            self.box_editor.scene().recognize_box(box)
+            QtCore.QCoreApplication.instance().processEvents()
+            self.box_editor.scene().update()
+            box.update()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():

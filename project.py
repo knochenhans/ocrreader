@@ -53,6 +53,7 @@ class Page():
 
 
 class Project():
+    # def __init__(self, name=self.tr('New Project', 'new_project'), default_language: Lang = Lang('English'), default_paper_size: str = SIZES['a4']):
     def __init__(self, name='New Project', default_language: Lang = Lang('English'), default_paper_size: str = SIZES['a4']):
         self.name = name
         self.default_language = default_language

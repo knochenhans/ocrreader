@@ -9,98 +9,19 @@ from ocrengine import OCREngineManager
 from project import Project
 
 
-class TextEditor(QtWidgets.QTextEdit):
-    editingFinished = QtCore.Signal()
+class DocumentHelper():
+    def __init__(self, document: QtGui.QTextDocument, lang_code: str) -> None:
+        self.document = document
+        self.lang_code = lang_code
 
-    def __init__(self, parent, project: Project):
-        super().__init__(parent)
-
-        self.project = project
-
-    def focusOutEvent(self, e: QtGui.QFocusEvent) -> None:
-        self.editingFinished.emit()
-        return super().focusOutEvent(e)
-
-
-class ProjectPage(QtWidgets.QWidget):
-    def __init__(self, parent, project: Project) -> None:
-        super().__init__(parent)
-        self.project = project
-        layout = QtWidgets.QVBoxLayout(self)
-        self.setLayout(layout)
-
-        self.name_edit = QtWidgets.QLineEdit(self)
-        self.name_edit.setText(project.name)
-        layout.addWidget(self.name_edit)
-
-        self.language_combo = QtWidgets.QComboBox(self)
-        self.language_combo.currentTextChanged.connect(self.language_changed)
-        layout.addWidget(self.language_combo)
-
-        layout.addStretch()
-
-    def language_changed(self, language_text):
-        self.project.default_language = Lang(self.language_combo.currentText())
-
-
-class RecognitionPage(QtWidgets.QWidget):
-    def __init__(self, parent, project: Project) -> None:
-        super().__init__(parent)
-
-        # self.current_box_properties = None
-
-        layout = QtWidgets.QVBoxLayout(self)
-        self.setLayout(layout)
-
-        self.language_combo = QtWidgets.QComboBox(self)
-        layout.addWidget(self.language_combo)
-
-        self.text_edit = TextEditor(self, project)
-        self.text_edit.setAcceptRichText(True)
-        layout.addWidget(self.text_edit)
-        self.reset()
-
-    def box_selected(self, box_properties: BoxProperties) -> None:
-        # if box_properties.ocr_result_block.paragraphs:
-        self.current_box_properties = box_properties
-        self.text_edit.setEnabled(True)
-        # if box_properties.ocr_result_block:
-        #     self.text_edit.setDocument(box_properties.ocr_result_block.get_text(True))
-
-        # Clone document, as text_edit will take ownership
-        self.text_edit.setDocument(box_properties.text.clone())
-        self.text_edit.update()
-
-    def reset(self) -> None:
-        # Block textChanged signal to keep widget from getting focus on reset
-        self.text_edit.blockSignals(True)
-
-        self.text_edit.setDisabled(True)
-        self.text_edit.setText('')
-        self.text_edit.setPlaceholderText('No text recognized yet.')
-
-        self.text_edit.blockSignals(False)
-
-        self.current_box_properties = None
-
-    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
-        match e.key():
-            case QtCore.Qt.Key_F7:
-                self.removeHyphens()
-        return super().keyPressEvent(e)
-
-    def removeHyphens(self) -> None:
-        document = self.text_edit.document()
-
-        lang_code: str = Lang(self.language_combo.currentText()).pt1
-
-        enchant_ = enchant.Dict(lang_code + '_' + lang_code.upper())
+    def removeHyphens(self) -> QtGui.QTextDocument:
+        dictionary = enchant.Dict(self.lang_code + '_' + self.lang_code.upper())
 
         paragraphs = []
 
         lines = []
 
-        block = document.begin()
+        block = self.document.begin()
 
         while block.isValid():
 
@@ -132,50 +53,149 @@ class RecognitionPage(QtWidgets.QWidget):
         cursor = QtGui.QTextCursor(new_document)
         format = QtGui.QTextCharFormat()
 
-        last_word = ''
+        first_word = ''
 
         for p, paragraph in enumerate(paragraphs):
             for l, line in enumerate(paragraph):
                 for f, fragment in enumerate(line):
-                    text: str = fragment.text().strip()
+                    text: str = fragment.text()
 
-                    block_format = QtGui.QTextBlockFormat()
-
-                    format = fragment.charFormat()
+                    format: QtGui.QTextCharFormat = fragment.charFormat()
                     cursor.setCharFormat(format)
 
-                    if last_word:
-                        if text[0].islower():
-                            (first_word, a, b) = text.partition(' ')
-
-                            if enchant_.check((last_word + first_word).strip(punctuation + '»«›‹„“”')):
-                                text = last_word + first_word
-                            else:
-                                text = last_word + '-' + first_word
-
-                            text += a + b
-                        else:
-                            text = last_word + '-' + text
-                        last_word = ''
+                    if first_word:
+                        (first_word, a, b) = text.partition(' ')
+                        text = b
+                        first_word = ''
 
                     if f == len(line) - 1:
-                        if text[-1] == '-':
-                            (a, b, last_word) = text[:-1].rpartition(' ')
-                            text = a
+                        if text:
+                            if text[-1] == '-':
+                                if l < len(paragraph) - 1:
+                                    (pre_a, pre_b, last_word) = text[:-1].rpartition(' ')
+                                    (first_word, post_a, post_b) = paragraph[l + 1][0].text().partition(' ')
 
-                    if text:
-                        cursor.insertText(text)
+                                    if pre_a.strip():
+                                        cursor.insertText(pre_a.strip() + ' ')
 
-                        if l < len(paragraph) - 1 or f < len(line) - 1 or last_word:
-                            cursor.insertText(' ')
-            # Preserve last hyphenated word
-            if last_word:
-                cursor.insertText(last_word + '-')
+                                    if last_word and first_word:
+                                        if dictionary.check((last_word + first_word).strip(punctuation + '»«›‹„“”')) and first_word[0].isalpha():
+                                            # text = text[:-1] + first_word
+                                            format.setUnderlineStyle(QtGui.QTextCharFormat.UnderlineStyle.DotLine)
+                                            cursor.setCharFormat(format)
+                                            cursor.insertText((last_word + first_word).strip())
+                                        else:
+                                            # text = text + first_word
+
+                                            format.setUnderlineColor(QtGui.QColor(255, 0, 0, 255))
+                                            format.setUnderlineStyle(QtGui.QTextCharFormat.UnderlineStyle.DotLine)
+                                            cursor.setCharFormat(format)
+                                            cursor.insertText((last_word + '-' + first_word).strip())
+
+                                        format.setUnderlineStyle(QtGui.QTextCharFormat.UnderlineStyle.NoUnderline)
+                                        format.clearBackground()
+                                        cursor.setCharFormat(format)
+                                        cursor.insertText(' ')
+                                        continue
+                    if text.strip():
+                        cursor.insertText(text.strip())
+
+                        format.clearBackground()
+                        cursor.setCharFormat(format)
+                        cursor.insertText(' ')
+
+                if l == len(paragraph) - 1:
+                    cursor.deletePreviousChar()
 
             if p < len(paragraphs) - 1:
                 cursor.insertText('\n\n')
 
-        self.text_edit.setDocument(new_document)
+        return new_document
+
+
+class TextEditor(QtWidgets.QTextEdit):
+    editingFinished=QtCore.Signal()
+
+    def __init__(self, parent, project: Project):
+        super().__init__(parent)
+
+        self.project=project
+
+    def focusOutEvent(self, e: QtGui.QFocusEvent) -> None:
+        self.editingFinished.emit()
+        return super().focusOutEvent(e)
+
+
+class ProjectPage(QtWidgets.QWidget):
+    def __init__(self, parent, project: Project) -> None:
+        super().__init__(parent)
+        self.project=project
+        layout=QtWidgets.QVBoxLayout(self)
+        self.setLayout(layout)
+
+        self.name_edit=QtWidgets.QLineEdit(self)
+        self.name_edit.setText(project.name)
+        layout.addWidget(self.name_edit)
+
+        self.language_combo=QtWidgets.QComboBox(self)
+        self.language_combo.currentTextChanged.connect(self.language_changed)
+        layout.addWidget(self.language_combo)
+
+        layout.addStretch()
+
+    def language_changed(self, language_text):
+        self.project.default_language=Lang(self.language_combo.currentText())
+
+
+class RecognitionPage(QtWidgets.QWidget):
+    def __init__(self, parent, project: Project) -> None:
+        super().__init__(parent)
+
+        # self.current_box_properties = None
+
+        layout=QtWidgets.QVBoxLayout(self)
+        self.setLayout(layout)
+
+        self.language_combo=QtWidgets.QComboBox(self)
+        layout.addWidget(self.language_combo)
+
+        self.text_edit=TextEditor(self, project)
+        self.text_edit.setAcceptRichText(True)
+        layout.addWidget(self.text_edit)
+        self.reset()
+
+    def box_selected(self, box_properties: BoxProperties) -> None:
+        # if box_properties.ocr_result_block.paragraphs:
+        self.current_box_properties=box_properties
+        self.text_edit.setEnabled(True)
+        # if box_properties.ocr_result_block:
+        #     self.text_edit.setDocument(box_properties.ocr_result_block.get_text(True))
+
+        # Clone document, as text_edit will take ownership
+        self.text_edit.setDocument(box_properties.text.clone())
+        self.text_edit.update()
+
+    def reset(self) -> None:
+        # Block textChanged signal to keep widget from getting focus on reset
+        self.text_edit.blockSignals(True)
+
+        self.text_edit.setDisabled(True)
+        self.text_edit.setText('')
+        self.text_edit.setPlaceholderText('No text recognized yet.')
+
+        self.text_edit.blockSignals(False)
+
+        self.current_box_properties=None
+
+    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+        match e.key():
+            case QtCore.Qt.Key_F7:
+                self.removeHyphens()
+        return super().keyPressEvent(e)
+
+    def removeHyphens(self) -> None:
+        document_helper=DocumentHelper(self.text_edit.document(), Lang(self.language_combo.currentText()).pt1)
+        self.text_edit.setDocument(document_helper.removeHyphens())
         self.update()
 
 
@@ -184,17 +204,17 @@ class PropertyEditor(QtWidgets.QToolBox):
         # self.box_editor: BoxEditor = None
         super().__init__(parent)
 
-        self.project = project
+        self.project=project
 
-        languages = engine_manager.get_current_engine().languages
+        languages=engine_manager.get_current_engine().languages
 
         # Project
-        self.project_widget = ProjectPage(self, self.project)
+        self.project_widget=ProjectPage(self, self.project)
         self.project_widget.language_combo.addItems(languages)
         self.addItem(self.project_widget, 'Project')
 
         # Recognition
-        self.recognition_widget = RecognitionPage(self, self.project)
+        self.recognition_widget=RecognitionPage(self, self.project)
         self.recognition_widget.language_combo.addItems(languages)
         self.addItem(self.recognition_widget, 'Recognition')
 

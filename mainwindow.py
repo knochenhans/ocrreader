@@ -1,8 +1,13 @@
 import ntpath
 import os
+import shutil
+import tempfile
+from pathlib import Path
 
 from iso639 import Lang
 from papersize import SIZES
+from pdf2image import convert_from_path
+from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from boxeditor import BoxEditor
@@ -83,6 +88,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))
 
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def __del__(self):
+        self.temp_dir.cleanup()
+
     def setup_actions(self) -> None:
         self.exit_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-line.png'), self.tr('&Exit', 'action_exit'), self)
         self.exit_action.setStatusTip(self.tr('Exit OCR Reader', 'status_exit'))
@@ -134,21 +144,39 @@ class MainWindow(QtWidgets.QMainWindow):
         pages = []
 
         for filename in filenames[0]:
-            pages.append(self.load_image(filename))
+            pages += self.load_image(filename)
 
         if filenames[1]:
             # Load first page
             self.box_editor.load_page(pages[0])
 
-    def load_image(self, filename: str) -> Page | None:
+    def load_image(self, filename: str) -> list:
+        pages = []
         if filename:
-            page = Page(filename, ntpath.basename(filename), self.project.default_paper_size)
-            self.project.add_page(page)
-            self.page_icon_view.load_page(page)
+            image_filenames = []
 
-            self.statusBar().showMessage(self.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
+            if os.path.splitext(filename)[1] == '.pdf':
+                images = convert_from_path(filename, output_folder=self.temp_dir.name)
 
-            return page
+                for image in images:
+                    image_png = Image.open(image.filename)
+                    image_png_filename = os.path.dirname(os.path.abspath(image.filename)) + '/' + Path(image.filename).stem + '.png'
+                    image_png.save(image_png_filename)
+                    os.remove(image.filename)
+                    image_filenames.append(image_png_filename)
+
+            else:
+                image_filenames.append(filename)
+
+            for image_filename in image_filenames:
+                page = Page(image_filename, ntpath.basename(filename), self.project.default_paper_size)
+                self.project.add_page(page)
+                self.page_icon_view.load_page(page)
+                pages.append(page)
+
+                self.statusBar().showMessage(self.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
+
+        return pages
 
     def open_project(self) -> None:
         filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
@@ -194,10 +222,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.save_project_file(project_file)
 
     def save_project_file(self, filename) -> None:
-        extension = os.path.dirname(os.path.abspath(filename))
+        extension = os.path.splitext(filename)[1]
 
-        if extension != 'orp':
+        if extension != '.orp':
             filename += '.orp'
+
+        save_folder = os.path.dirname(os.path.abspath(filename))
+        data_folder = save_folder + '/' + Path(ntpath.basename(filename)).stem
+
+        for page in self.project.pages:
+            if page.image_path.startswith(self.temp_dir.name):
+                if not os.path.exists(data_folder):
+                    os.makedirs(data_folder, exist_ok=True)
+
+                new_path = data_folder + '/' + ntpath.basename(page.image_path)
+
+                shutil.move(page.image_path, new_path)
+                page.image_path = data_folder + '/' + ntpath.basename(page.image_path)
 
         file = QtCore.QFile(filename)
         file.open(QtCore.QIODevice.WriteOnly)

@@ -577,21 +577,39 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         for item in self.selectedItems():
             self.property_editor.recognition_widget.box_selected(item.properties)
 
-    def add_box(self, rect: QtCore.QRectF) -> Box:
+    def shift_ordering(self, box: Box, shift_by: int):
+        ordered_items = sorted(self.items(), key=lambda x: x.properties.order)
+
+        move_rest = False
+
+        for item in ordered_items:
+            if isinstance(item, Box):
+                if item != box:
+                    if item.properties.order == box.properties.order:
+                        move_rest = True
+                    if move_rest:
+                        item.properties.order += shift_by
+                        item.update()
+
+    def add_box(self, rect: QtCore.QRectF, order=-1) -> Box:
         '''Add new box and give it an order number'''
+
         self.current_box = Box(rect, self.engine_manager, self)
-        self.current_box.properties.order = self.box_counter
-        self.box_counter += 1
-        self.addItem(self.current_box)
         self.current_page.box_properties.append(self.current_box.properties)
-        # self.box.text_recognized.connect(self.parent.update_property_editor)
+        self.current_box.properties.order = order
+
+        self.addItem(self.current_box)
+
+        if order >= 0:
+            self.shift_ordering(self.current_box, 1)
+        else:
+            self.current_box.properties.order = self.box_counter
+        self.box_counter += 1
         return self.current_box
 
     def restore_box(self, box_properties: BoxProperties) -> Box:
         '''Restore a box in the editor using box properties stored in the project'''
         self.current_box = Box(QtCore.QRectF(box_properties.rect), self.engine_manager, self)
-        # print('restore: ' + box_properties.test.toPlainText())
-        #print('restore: ' + box_properties.text.toPlainText())
         self.current_box.properties = box_properties
         self.box_counter += 1
         self.addItem(self.current_box)
@@ -601,13 +619,14 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Remove a box from the editor window and project'''
         self.removeItem(box)
         self.current_page.box_properties.remove(box.properties)
-        #self.box_counter -= 1
 
         # Renumber items
         self.box_counter = 0
         self.current_box = None
 
-        for item in reversed(self.items()):
+        ordered_items = sorted(self.items(), key=lambda x: x.properties.order)
+
+        for item in ordered_items:
             if isinstance(item, Box):
                 item.properties.order = self.box_counter
                 self.box_counter += 1
@@ -622,57 +641,61 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         is_image = False
 
         if isinstance(blocks, list):
-            if len(blocks) == 1:
-                block = blocks[0]
+            if raw:
+                box.properties.ocr_result_block = blocks[0]
+                box.properties.text = blocks[0].get_text(False)
+                box.properties.recognized = True
+            else:
+                if len(blocks) == 1:
+                    block = blocks[0]
 
-                if block.get_avg_confidence() > 30:
-                    box.properties.ocr_result_block = block
-                    box.properties.words = block.get_words()
-                    box.properties.text = block.get_text(True)
-                    # box.properties.test = blocks[0].get_text(True)
-                    box.properties.recognized = True
-                else:
-                    is_image = True
-            elif len(blocks) > 1:
-                new_boxes = []
-
-                # Multiple text blocks have been recognized within the selection, replace original box with new boxes
-
-                added_boxes = 0
-
-                for block in blocks:
-                    # Skip blocks with bad confidence (might be an image)
-                    # TODO: Find a good threshold
                     if block.get_avg_confidence() > 30:
+                        box.properties.ocr_result_block = block
+                        box.properties.words = block.get_words()
+                        box.properties.text = block.get_text(True)
+                        box.properties.recognized = True
+                    else:
+                        is_image = True
+                elif len(blocks) > 1:
+                    new_boxes = []
 
-                        # Add new blocks at the recognized positions and adjust child elements
-                        new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())))
-                        dist = box.rect().topLeft() - new_box.rect().topLeft()
-                        new_box.properties.ocr_result_block = block
+                    # Multiple text blocks have been recognized within the selection, replace original box with new boxes
 
-                        # Move paragraph lines and word boxes accordingly
-                        new_box.properties.ocr_result_block.translate(dist.toPoint())
-
-                        new_box.properties.words = new_box.properties.ocr_result_block.get_words()
-                        new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
-
-                        new_box.properties.recognized = True
-                        new_box.update()
-
-                        self.current_box = None
-
-                        new_boxes.append(new_box)
-                        added_boxes += 1
-
-                if added_boxes > 0:
                     # Remove original box
                     self.remove_box(box)
 
-                    new_boxes[0].setSelected(True)
+                    added_boxes = 0
+
+                    for block in blocks:
+                        # Skip blocks with bad confidence (might be an image)
+                        # TODO: Find a good threshold
+                        if block.get_avg_confidence() > 30:
+
+                            # Add new blocks at the recognized positions and adjust child elements
+                            new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())), box.properties.order + added_boxes)
+                            dist = box.rect().topLeft() - new_box.rect().topLeft()
+                            new_box.properties.ocr_result_block = block
+
+                            # Move paragraph lines and word boxes accordingly
+                            new_box.properties.ocr_result_block.translate(dist.toPoint())
+
+                            new_box.properties.words = new_box.properties.ocr_result_block.get_words()
+                            new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
+
+                            new_box.properties.recognized = True
+                            new_box.update()
+
+                            self.current_box = None
+
+                            new_boxes.append(new_box)
+                            added_boxes += 1
+
+                    if added_boxes > 0:
+                        new_boxes[0].setSelected(True)
+                    else:
+                        is_image = True
                 else:
                     is_image = True
-            else:
-                is_image = True
 
         if is_image:
             # The original box is probably an image

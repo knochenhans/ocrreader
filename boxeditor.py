@@ -427,6 +427,10 @@ class Box(QtWidgets.QGraphicsRectItem):
             read_action.triggered.connect(self.recognize_text)
             self.menu.addAction(read_action)
 
+            read_action_raw = QtGui.QAction('Read raw')
+            read_action_raw.triggered.connect(self.recognize_text_raw)
+            self.menu.addAction(read_action_raw)
+
             auto_align_action = QtGui.QAction('Auto align')
             auto_align_action.triggered.connect(self.auto_align)
             self.menu.addAction(auto_align_action)
@@ -507,6 +511,17 @@ class Box(QtWidgets.QGraphicsRectItem):
                 self.scene().recognize_box(self)
         else:
             self.scene().recognize_box(self)
+
+    def recognize_text_raw(self) -> None:
+        '''Delegate recognition to scene in case new boxes are detected'''
+        if self.properties.recognized:
+            button = QtWidgets.QMessageBox.question(self.custom_scene.parent(), self.custom_scene.tr('Recognize again?', 'dialog_recognize_again_title'),
+                                                    self.custom_scene.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+
+            if button == QtWidgets.QMessageBox.Yes:
+                self.scene().recognize_box(self, True)
+        else:
+            self.scene().recognize_box(self, True)
 
     def get_image(self) -> QtGui.QPixmap:
         '''Return part of the image within selection'''
@@ -598,11 +613,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 self.box_counter += 1
                 item.update()
 
-    def recognize_box(self, box: Box):
+    def recognize_box(self, box: Box, raw=False):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
-        blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language)
+        blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language, raw)
 
         is_image = False
 

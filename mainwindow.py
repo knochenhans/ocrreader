@@ -52,13 +52,8 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
 
-        # Create test project
-
-        # page = Page('/mnt/Daten/Emulation/Amiga/Amiga Magazin/x-000.ppm', '1', SIZES['a4'])
-
-        self.project = Project(default_language=Lang('deu'))
-        # self.project.load_page('/mnt/Daten/Emulation/Amiga/Amiga Magazin/x-000.ppm', SIZES['a4'])
-        # self.project.load_page('/mnt/Daten/Emulation/Amiga/Amiga Magazin/x-000.ppm', SIZES['a4'])
+        system_lang = Lang(QtCore.QLocale().system().languageToCode(QtCore.QLocale().system().language()))
+        self.project = Project(default_language=system_lang)
 
         self.engine_manager = OCREngineManager([OCREngineTesseract()])
 
@@ -109,7 +104,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.save_project_action.triggered.connect(self.save_project)
         self.save_project_action.setShortcut(QtGui.QKeySequence('Ctrl+s'))
 
-        self.load_image_action = QtGui.QAction(QtGui.QIcon('resources/icons/image-line.png'), self.tr('&Load Image', 'action_load_image'), self)
+        self.load_image_action = QtGui.QAction(QtGui.QIcon('resources/icons/image-line.png'), self.tr('&Load Image or PDF', 'action_load_image'), self)
         self.load_image_action.setStatusTip(self.tr('Load Image', 'status_load_image'))
         self.load_image_action.triggered.connect(self.load_image_dialog)
         self.load_image_action.setShortcut(QtGui.QKeySequence('Ctrl+i'))
@@ -130,10 +125,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.box_editor.load_page(index.data(QtCore.Qt.UserRole))
         self.project.current_page_idx = self.page_icon_view.currentIndex().row()
+        self.box_editor.scene().update()
 
     def load_image_dialog(self) -> None:
-        filenames = QtWidgets.QFileDialog.getOpenFileNames(parent=self, caption=self.tr('Load Image', 'status_load_image'),
-                                                           filter=self.tr('Image files (*.jpg *.png *.gif *.bmp *.ppm)', 'filter_image_files'))
+        filenames = QtWidgets.QFileDialog.getOpenFileNames(parent=self, caption=self.tr('Load Image or PDF', 'status_load_image'),
+                                                           filter=self.tr('Image and PDF files (*.jpg *.jpeg *.png *.gif *.bmp *.ppm *.pdf)', 'filter_image_files'))
 
         pages = []
 

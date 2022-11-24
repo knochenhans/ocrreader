@@ -1,4 +1,4 @@
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from hocrdata import HOCR_Data
 from ocr_result_paragraph import OCRResultParagraph
@@ -10,6 +10,7 @@ class OCRResultBlock(HOCR_Data):
         self.paragraphs = []
         self.image_size = image_size
         self.px_per_mm = px_per_mm
+        self.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.GeneralFont)
         if block:
             super().__init__(block['title'])
 
@@ -75,6 +76,7 @@ class OCRResultBlock(HOCR_Data):
                 height = self.px_per_mm * paragraph.get_avg_height() * 3
 
                 format.setFontPointSize(round(height))
+                format.setFont(self.font)
                 cursor.setCharFormat(format)
                 # cursor.insertBlock(block_format)
                 # cursor.deletePreviousChar()

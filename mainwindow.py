@@ -65,7 +65,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.splitter_1 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
 
         self.page_icon_view = PagesIconView(self, self.project)
-        self.page_icon_view.clicked.connect(self.page_selected)
+        self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
 
         self.splitter_1.addWidget(self.page_icon_view)
 

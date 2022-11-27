@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(QtGui.QIcon('resources/icons/character-recognition-line.png'))
         self.show()
 
-        self.last_project_file = ''
+        self.last_project_filename = ''
         self.last_project_directory = ''
 
         toolbar = QtWidgets.QToolBar('Toolbar')
@@ -179,19 +179,19 @@ class MainWindow(QtWidgets.QMainWindow):
         return pages
 
     def open_project(self) -> None:
-        filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
-                                                         filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
+        project_filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
+                                                                 filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
 
-        if filename:
-            file = QtCore.QFile(filename)
-            file.open(QtCore.QIODevice.ReadOnly)
-            input = QtCore.QDataStream(file)
+        if project_filename:
+            project_file = QtCore.QFile(project_filename)
+            project_file.open(QtCore.QIODevice.ReadOnly)
+            input = QtCore.QDataStream(project_file)
 
             # Read project
             self.project = Project()
             self.project.read(input)
 
-            file.close()
+            project_file.close()
 
             # Reconstruct pages and page elements from project file
             for page in self.project.pages:
@@ -202,17 +202,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.page_icon_view.setCurrentIndex(index)
             self.page_selected(index)
 
-            self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + file.fileName())
+            self.last_project_filename = project_filename
+
+            self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + project_file.fileName())
 
     def save_project(self) -> None:
-        project_file = self.last_project_file
+        project_filename = self.last_project_filename
 
-        if not project_file:
-            project_file = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project', 'dialog_save_project'),
-                                                                 filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
+        if not project_filename:
+            project_filename = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project', 'dialog_save_project'),
+                                                                     filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
 
-        if project_file:
-            self.save_project_file(project_file)
+        if project_filename:
+            self.save_project_file(project_filename)
 
     def save_project_as(self) -> None:
         project_file = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project as', 'dialog_save_project'),
@@ -247,8 +249,8 @@ class MainWindow(QtWidgets.QMainWindow):
         file.close()
 
         self.statusBar().showMessage(self.tr('Save project', 'dialog_save_project') + ': ' + file.fileName())
-        self.last_project_file = filename
-        self.last_project_directory = os.path.dirname(os.path.abspath(self.last_project_file))
+        self.last_project_filename = filename
+        self.last_project_directory = os.path.dirname(os.path.abspath(self.last_project_filename))
 
     def export_project(self) -> None:
         self.box_editor.export_odt()

@@ -4,7 +4,7 @@ import enchant
 from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxeditor import BoxProperties
+from boxeditor import BoxData
 from ocrengine import OCREngineManager
 from project import Project
 
@@ -151,7 +151,7 @@ class RecognitionPage(QtWidgets.QWidget):
     def __init__(self, parent, project: Project) -> None:
         super().__init__(parent)
 
-        # self.current_box_properties = None
+        # self.current_box_datas = None
 
         layout=QtWidgets.QVBoxLayout(self)
         self.setLayout(layout)
@@ -164,15 +164,15 @@ class RecognitionPage(QtWidgets.QWidget):
         layout.addWidget(self.text_edit)
         self.reset()
 
-    def box_selected(self, box_properties: BoxProperties) -> None:
-        # if box_properties.ocr_result_block.paragraphs:
-        self.current_box_properties=box_properties
+    def box_selected(self, box_datas: BoxData) -> None:
+        # if box_datas.ocr_result_block.paragraphs:
+        self.current_box_datas=box_datas
         self.text_edit.setEnabled(True)
-        # if box_properties.ocr_result_block:
-        #     self.text_edit.setDocument(box_properties.ocr_result_block.get_text(True))
+        # if box_datas.ocr_result_block:
+        #     self.text_edit.setDocument(box_datas.ocr_result_block.get_text(True))
 
         # Clone document, as text_edit will take ownership
-        self.text_edit.setDocument(box_properties.text.clone())
+        self.text_edit.setDocument(box_datas.text.clone())
         self.text_edit.update()
 
     def reset(self) -> None:
@@ -185,7 +185,7 @@ class RecognitionPage(QtWidgets.QWidget):
 
         self.text_edit.blockSignals(False)
 
-        self.current_box_properties=None
+        self.current_box_datas=None
 
     def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
         match e.key():

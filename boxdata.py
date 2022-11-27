@@ -7,13 +7,13 @@ from ocr_result_block import OCRResultBlock
 from ocr_result_word import OCRResultWord
 
 
-class BOX_PROPERTY_TYPE(Enum):
+class BOX_DATA_TYPE(Enum):
     TEXT = auto()
     IMAGE = auto()
 
 
-class BoxProperties():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_PROPERTY_TYPE = BOX_PROPERTY_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), words: list = None):
+class BoxData():
+    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), words: list = None):
         self.order = order
         self.rect = rect
         self.type = type
@@ -45,7 +45,7 @@ class BoxProperties():
     def read(self, file: QtCore.QDataStream):
         self.order = file.readInt16()
         self.rect = file.readQVariant()
-        self.type = BOX_PROPERTY_TYPE(file.readInt16())
+        self.type = BOX_DATA_TYPE(file.readInt16())
         self.text = QtGui.QTextDocument()
         self.text.setHtml(file.readString())
 

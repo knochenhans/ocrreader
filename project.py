@@ -4,16 +4,16 @@ from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui
 
-from boxproperties import BoxProperties
+from boxdata import BoxData
 
 
 class Page():
     def __init__(self, image_path: str = '', name: str = '', paper_size_str: str = ''):
         self.image_path = image_path
         self.name = name
-        self.blocks = []
+        #self.blocks = []
         self.paper_size = paper_size_str
-        self.box_properties = []
+        self.box_datas = []
 
         if paper_size_str:
             self.px_per_mm = self.calc_px_per_mm(paper_size_str)
@@ -33,10 +33,10 @@ class Page():
         file.writeString(self.paper_size)
         file.writeFloat(self.px_per_mm)
 
-        file.writeInt16(len(self.box_properties))
+        file.writeInt16(len(self.box_datas))
 
-        for box_properties in self.box_properties:
-            box_properties.write(file)
+        for box_datas in self.box_datas:
+            box_datas.write(file)
 
     def read(self, file: QtCore.QDataStream):
         self.image_path = file.readString()
@@ -44,12 +44,12 @@ class Page():
         self.paper_size = file.readString()
         self.px_per_mm = file.readFloat()
 
-        box_properties_count = file.readInt16()
+        box_datas_count = file.readInt16()
 
-        for b in range(box_properties_count):
-            box_property = BoxProperties()
-            box_property.read(file)
-            self.box_properties.append(box_property)
+        for b in range(box_datas_count):
+            box_data = BoxData()
+            box_data.read(file)
+            self.box_datas.append(box_data)
 
 
 class Project():

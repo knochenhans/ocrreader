@@ -10,7 +10,7 @@ from odf.opendocument import OpenDocumentText
 from odf.text import P
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxproperties import BOX_PROPERTY_TYPE, BoxProperties
+from boxdata import BOX_DATA_TYPE, BoxData
 from ocrengine import OCREngineManager
 from project import Page, Project
 
@@ -51,9 +51,9 @@ class BoxEditor(QtWidgets.QGraphicsView):
         self.current_page = page
         self.custom_scene.current_page = self.current_page
 
-        for box_property in page.box_properties:
+        for box_data in page.box_datas:
             # Restore existing boxes for this page
-            self.custom_scene.restore_box(box_property)
+            self.custom_scene.restore_box(box_data)
 
         # TODO: Check if there’s a way to avoid checking current_box to find out if box is resized
         self.custom_scene.current_box = None
@@ -233,7 +233,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
 
-        self.properties = BoxProperties()
+        self.properties = BoxData()
         self.properties.language = self.custom_scene.project.default_language
 
         self.setRect(rect)
@@ -323,7 +323,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         '''Paint background and border using colors defined by type and update order number item'''
         color = BoxColor()
 
-        if self.properties.type == BOX_PROPERTY_TYPE.TEXT:
+        if self.properties.type == BOX_DATA_TYPE.TEXT:
             color = self.color_text
         else:
             color = self.color_image
@@ -422,7 +422,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.menu.addAction(image_action)
 
-        if self.properties.type == BOX_PROPERTY_TYPE.TEXT:
+        if self.properties.type == BOX_DATA_TYPE.TEXT:
             read_action = QtGui.QAction('Read')
             read_action.triggered.connect(self.recognize_text)
             self.menu.addAction(read_action)
@@ -442,7 +442,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         new_rect = self.rect()
 
-        if self.type == BOX_PROPERTY_TYPE.TEXT:
+        if self.type == BOX_DATA_TYPE.TEXT:
             pass
         else:
             image = self.get_image().toImage().copy()
@@ -529,11 +529,11 @@ class Box(QtWidgets.QGraphicsRectItem):
         return image.copy(self.properties.rect)
 
     def set_type_to_text(self) -> None:
-        self.properties.type = BOX_PROPERTY_TYPE.TEXT
+        self.properties.type = BOX_DATA_TYPE.TEXT
         self.update()
 
     def set_type_to_image(self) -> None:
-        self.properties.type = BOX_PROPERTY_TYPE.IMAGE
+        self.properties.type = BOX_DATA_TYPE.IMAGE
         self.auto_align()
         self.update()
 
@@ -595,7 +595,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Add new box and give it an order number'''
 
         self.current_box = Box(rect, self.engine_manager, self)
-        self.current_page.box_properties.append(self.current_box.properties)
+        self.current_page.box_datas.append(self.current_box.properties)
         self.current_box.properties.order = order
 
         self.addItem(self.current_box)
@@ -607,10 +607,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.box_counter += 1
         return self.current_box
 
-    def restore_box(self, box_properties: BoxProperties) -> Box:
+    def restore_box(self, box_datas: BoxData) -> Box:
         '''Restore a box in the editor using box properties stored in the project'''
-        self.current_box = Box(QtCore.QRectF(box_properties.rect), self.engine_manager, self)
-        self.current_box.properties = box_properties
+        self.current_box = Box(QtCore.QRectF(box_datas.rect), self.engine_manager, self)
+        self.current_box.properties = box_datas
         self.box_counter += 1
         self.addItem(self.current_box)
         return self.current_box
@@ -618,7 +618,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def remove_box(self, box: Box) -> None:
         '''Remove a box from the editor window and project'''
         self.removeItem(box)
-        self.current_page.box_properties.remove(box.properties)
+        self.current_page.box_datas.remove(box.properties)
 
         # Renumber items
         self.box_counter = 0

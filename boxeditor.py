@@ -109,57 +109,25 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
         super().mouseMoveEvent(event)
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        # Get selected boxes:
-        boxes = self.get_boxes(True)
+    # def get_boxes(self, only_selected: bool = False) -> list:
+    #     boxes = []
 
-        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
-            match event.key():
-                case QtCore.Qt.Key_A:
-                    for box in self.items():
-                        box.setSelected(True)
-                case _:
-                    super().keyPressEvent(event)
+    #     for item in self.scene().items():
+    #         if isinstance(item, Box):
+    #             if only_selected:
+    #                 if item in self.scene().selectedItems():
+    #                     boxes.append(item)
+    #             else:
+    #                 boxes.append(item)
 
-        if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
-            match event.key():
-                case QtCore.Qt.Key_A:
-                    for box in boxes:
-                        box.auto_align()
-                case QtCore.Qt.Key_I:
-                    for box in boxes:
-                        box.set_type_to_image()
-                case QtCore.Qt.Key_T:
-                    for box in boxes:
-                        box.set_type_to_text()
-                case QtCore.Qt.Key_R:
-                    for box in boxes:
-                        box.recognize_text()
-                case QtCore.Qt.Key_Delete:
-                    for box in boxes:
-                        self.scene().remove_box(box)
-                case _:
-                    super().keyPressEvent(event)
-
-    def get_boxes(self, only_selected: bool = False) -> list:
-        boxes = []
-
-        for item in self.scene().items():
-            if isinstance(item, Box):
-                if only_selected:
-                    if item in self.scene().selectedItems():
-                        boxes.append(item)
-                else:
-                    boxes.append(item)
-
-        boxes.sort(key=lambda x: x.properties.order)
-        return boxes
+    #     boxes.sort(key=lambda x: x.properties.order)
+    #     return boxes
 
     def export_odt(self):
         # text = QtGui.QTextDocument()
         # cursor = QtGui.QTextCursor(text)
 
-        boxes = self.get_boxes()
+        boxes = self.scene().selectedItems()
 
         textdoc = OpenDocumentText()
 
@@ -556,6 +524,50 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.selectionChanged.connect(self.update_property_editor)
         self.property_editor.recognition_widget.text_edit.editingFinished.connect(self.update_text)
         self.property_editor.recognition_widget.language_combo.currentTextChanged.connect(self.update_language)
+
+    def selectedItems(self) -> list[Box]:
+        items = super().selectedItems()
+
+        boxes = []
+
+        for item in items:
+            if isinstance(item, Box):
+                boxes.append(item)
+        return boxes
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        # Get selected boxes:
+        boxes = self.selectedItems()
+
+        boxes.sort(key=lambda x: x.properties.order)
+
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
+            match event.key():
+                case QtCore.Qt.Key_A:
+                    for box in self.items():
+                        box.setSelected(True)
+                case _:
+                    super().keyPressEvent(event)
+
+        if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
+            match event.key():
+                case QtCore.Qt.Key_A:
+                    for box in boxes:
+                        box.auto_align()
+                case QtCore.Qt.Key_I:
+                    for box in boxes:
+                        box.set_type_to_image()
+                case QtCore.Qt.Key_T:
+                    for box in boxes:
+                        box.set_type_to_text()
+                case QtCore.Qt.Key_R:
+                    for box in boxes:
+                        box.recognize_text()
+                case QtCore.Qt.Key_Delete:
+                    for box in boxes:
+                        self.scene().remove_box(box)
+                case _:
+                    super().keyPressEvent(event)
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:

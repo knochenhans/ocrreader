@@ -625,6 +625,26 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         return sorted(items_boxes, key=lambda x: x.properties.order)
 
+    def focusNextPrevChild(self, next: bool) -> bool:
+        current_item = self.selectedItems()[0]
+        next_item_order = current_item
+        step = 0
+
+        if isinstance(current_item, Box):
+            if next:
+                step = 1
+            else:
+                step = -1
+
+            next_item_order = (current_item.properties.order + step) % len(self.items())
+
+        for item in self.items():
+            if next_item_order == item.properties.order:
+                self.clearSelection()
+                item.setSelected(True)
+                item.setFocus()
+
+        return True
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:

@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import math
 
 import cv2
@@ -40,6 +41,9 @@ class BoxEditor(QtWidgets.QGraphicsView):
         self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
         self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
         self.setDisabled(True)
+
+        # Enable so we get mouse move events
+        self.setMouseTracking(True)
 
     def load_page(self, page: Page):
         self.custom_scene.clear()
@@ -506,10 +510,83 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.update()
 
 
+class HEADER_FOOTER_ITEM_TYPE(Enum):
+    HEADER = auto()
+    FOOTER = auto()
+
+
+class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
+    def __init__(self, type: HEADER_FOOTER_ITEM_TYPE, page_size: QtCore.QSizeF, y: float):
+        super().__init__()
+
+        rect = QtCore.QRectF()
+
+        rect.setX(0)
+        rect.setWidth(page_size.width())
+
+        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+            title = 'Header'
+            rect.setBottom(y)
+        else:
+            title = 'Footer'
+            rect.setTop(y)
+            rect.setBottom(page_size.height())
+        
+        self.setRect(rect)
+
+        brush = QtGui.QBrush(QtGui.QColor(128, 0, 200, 150))
+        brush.setStyle(QtCore.Qt.BDiagPattern)
+
+        self.setPen(QtCore.Qt.NoPen)
+        self.setBrush(brush)
+
+        pen = QtGui.QPen(QtGui.QColor(128, 0, 200, 150))
+        pen.setWidth(1)
+        pen.setStyle(QtCore.Qt.SolidLine)
+        pen.setCosmetic(True)
+
+        self.title = QtWidgets.QGraphicsSimpleTextItem(self)
+        self.title.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+        self.title.setPen(pen)
+        self.title.setText(title)
+
+        self.line = QtWidgets.QGraphicsLineItem(self)
+        self.line.setPen(QtGui.QPen(QtGui.QColor(128, 0, 200, 200), 3, QtCore.Qt.SolidLine))
+        self.line.setPos(self.rect().topLeft())
+        self.line.setLine(0, 0, self.rect().width(), 0)
+
+    def update_title(self):
+        self.title.setPos(5, self.rect().y() + 5)
+
+    def update_bottom_position(self, y: float):
+        rect = self.rect()
+        rect.setHeight(y)
+        self.setRect(rect)
+        self.line.setPos(0, y)
+        # self.line.setLine(0, 0, self.rect().width(), 0)
+
+    def update_top_position(self, y: float):
+        rect = self.rect()
+        rect.setTop(y)
+        self.setRect(rect)
+        self.line.setPos(0, y)
+        self.title.setPos(5, self.rect().y() + 5)
+        # self.line.setLine(0, 0, self.rect().width(), 0)
+
+
+class BOX_EDITOR_SCENE_STATE(Enum):
+    IDLE = auto()
+    DRAW_BOX = auto()
+    PLACE_HEADER = auto()
+    PLACE_FOOTER = auto()
+
+
 class BoxEditorScene(QtWidgets.QGraphicsScene):
     def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
         super().__init__(parent)
         self.current_box = None
+        self.header_item = None
+        self.footer_item = None
 
         self.project = project
         self.current_page = page
@@ -525,6 +602,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.property_editor.recognition_widget.text_edit.editingFinished.connect(self.update_text)
         self.property_editor.recognition_widget.language_combo.currentTextChanged.connect(self.update_language)
 
+        self.state = BOX_EDITOR_SCENE_STATE.IDLE
+
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
 
@@ -535,39 +614,17 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 boxes.append(item)
         return boxes
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
-        # Get selected boxes:
-        boxes = self.selectedItems()
+    def items(self, order=False) -> list[Box]:
+        items = super().items()
 
-        boxes.sort(key=lambda x: x.properties.order)
+        items_boxes = []
 
-        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
-            match event.key():
-                case QtCore.Qt.Key_A:
-                    for box in self.items():
-                        box.setSelected(True)
-                case _:
-                    super().keyPressEvent(event)
+        for item in items:
+            if isinstance(item, Box):
+                items_boxes.append(item)
 
-        if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
-            match event.key():
-                case QtCore.Qt.Key_A:
-                    for box in boxes:
-                        box.auto_align()
-                case QtCore.Qt.Key_I:
-                    for box in boxes:
-                        box.set_type_to_image()
-                case QtCore.Qt.Key_T:
-                    for box in boxes:
-                        box.set_type_to_text()
-                case QtCore.Qt.Key_R:
-                    for box in boxes:
-                        box.recognize_text()
-                case QtCore.Qt.Key_Delete:
-                    for box in boxes:
-                        self.scene().remove_box(box)
-                case _:
-                    super().keyPressEvent(event)
+        return sorted(items_boxes, key=lambda x: x.properties.order)
+
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:
@@ -716,71 +773,116 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         box.update()
         self.update_property_editor()
 
+    def get_mouse_position(self) -> QtCore.QPointF:
+        mouse_origin = self.views()[0].mapFromGlobal(QtGui.QCursor.pos())
+        return self.views()[0].mapToScene(mouse_origin)
+
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''
-        if not self.itemAt(event.scenePos(), QtGui.QTransform()):
-            if event.buttons() == QtCore.Qt.LeftButton:
-                if not self.current_box:
-                    rect = QtCore.QRectF()
-                    rect.setTopLeft(event.scenePos())
-                    rect.setBottomRight(event.scenePos())
+        if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
+            if not self.itemAt(event.scenePos(), QtGui.QTransform()):
+                if event.buttons() == QtCore.Qt.LeftButton:
+                    if not self.current_box:
+                        rect = QtCore.QRectF()
+                        rect.setTopLeft(event.scenePos())
+                        rect.setBottomRight(event.scenePos())
 
-                    self.add_box(rect)
+                        self.add_box(rect)
+
+                        self.state = BOX_EDITOR_SCENE_STATE.DRAW_BOX
+        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
+            if self.header_item:
+                self.state = BOX_EDITOR_SCENE_STATE.IDLE
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        if event.buttons() == QtCore.Qt.LeftButton:
-            if self.current_box:
-                rect = self.current_box.rect()
-                rect.setBottomRight(event.scenePos())
-                self.current_box.setRect(rect)
+        if self.state == BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+            if event.buttons() == QtCore.Qt.LeftButton:
+                if self.current_box:
+                    rect = self.current_box.rect()
+                    rect.setBottomRight(event.scenePos())
+                    self.current_box.setRect(rect)
+        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
+            if self.header_item:
+                self.header_item.update_bottom_position(event.scenePos().y())
+        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
+            if self.footer_item:
+                self.footer_item.update_top_position(event.scenePos().y())
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Commit changes after drawing box or remove if too small'''
-        if self.current_box:
-            corner = self.current_box.rect().topLeft()
-            if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
-                self.current_box.updateProperties()
-                self.current_box.setSelected(True)
-                self.current_box.setFocus()
-            else:
-                self.remove_box(self.current_box)
+        if self.state == BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+            if self.current_box:
+                corner = self.current_box.rect().topLeft()
+                if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
+                    self.current_box.updateProperties()
+                    self.current_box.setSelected(True)
+                    self.current_box.setFocus()
+                else:
+                    self.remove_box(self.current_box)
             self.current_box = None
+        self.state = BOX_EDITOR_SCENE_STATE.IDLE
         super().mouseReleaseEvent(event)
 
-    def items(self, order=False) -> list[Box]:
-        items = super().items()
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        # Get selected boxes:
+        boxes = self.selectedItems()
 
-        items_boxes = []
+        # Sort by order number
+        boxes.sort(key=lambda x: x.properties.order)
 
-        for item in items:
-            if isinstance(item, Box):
-                items_boxes.append(item)
+        page_size = QtCore.QSizeF(self.width(), self.height())
 
-        return sorted(items_boxes, key=lambda x: x.properties.order)
+        if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
+            if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
+                match event.key():
+                    case QtCore.Qt.Key_A:
+                        for box in self.items():
+                            box.setSelected(True)
+                    case _:
+                        super().keyPressEvent(event)
 
-    def focusNextPrevChild(self, next: bool) -> bool:
-        current_item = self.selectedItems()[0]
-        next_item_order = current_item
-        step = 0
-
-        if isinstance(current_item, Box):
-            if next:
-                step = 1
-            else:
-                step = -1
-
-            next_item_order = (current_item.properties.order + step) % len(self.items())
-
-        for item in self.items():
-            if next_item_order == item.properties.order:
-                self.clearSelection()
-                item.setSelected(True)
-                item.setFocus()
-
-        return True
+            if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
+                match event.key():
+                    case QtCore.Qt.Key_A:
+                        for box in boxes:
+                            box.auto_align()
+                    case QtCore.Qt.Key_I:
+                        for box in boxes:
+                            box.set_type_to_image()
+                    case QtCore.Qt.Key_T:
+                        for box in boxes:
+                            box.set_type_to_text()
+                    case QtCore.Qt.Key_R:
+                        for box in boxes:
+                            box.recognize_text()
+                    case QtCore.Qt.Key_Delete:
+                        for box in boxes:
+                            self.remove_box(box)
+                    case QtCore.Qt.Key_H:
+                        # Add header position line (attached to mouse y position)
+                        self.state = BOX_EDITOR_SCENE_STATE.PLACE_HEADER
+                        self.header_item = HeaderFooterItem(HEADER_FOOTER_ITEM_TYPE.HEADER, page_size, self.get_mouse_position().y())
+                        self.addItem(self.header_item)
+                        self.header_item.setFocus()
+                        self.header_item.update_title()
+                    case QtCore.Qt.Key_F:
+                        # Add footer position line (attached to mouse y position)
+                        self.state = BOX_EDITOR_SCENE_STATE.PLACE_FOOTER
+                        self.footer_item = HeaderFooterItem(HEADER_FOOTER_ITEM_TYPE.FOOTER, page_size, self.get_mouse_position().y())
+                        self.addItem(self.footer_item)
+                        self.footer_item.setFocus()
+                        self.footer_item.update_title()
+                    case _:
+                        super().keyPressEvent(event)
+        else:
+            # TODO: enable canceling actions
+            if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
+                match event.key():
+                    case QtCore.Qt.Key_Escape:
+                        self.state = BOX_EDITOR_SCENE_STATE.IDLE
 
     def set_page_as_background(self, page: Page):
         self.image = QtGui.QPixmap(page.image_path)

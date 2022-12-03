@@ -1,12 +1,18 @@
 import io
+from math import sqrt
 
 import cv2
 import numpy
 import pytesseract
 from bs4 import BeautifulSoup
 from iso639 import Lang
-from PIL import Image
+from PIL import Image, ImageEnhance
 from PySide6 import QtCore, QtGui
+from sklearn.cluster import KMeans
+# from collections import Counter
+# from matplotlib import image as img
+# import matplotlib.pyplot as plt
+# import matplotlib.image as mpimg
 
 from ocr_result_block import OCRResultBlock
 from ocr_result_line import OCRResultLine
@@ -62,7 +68,32 @@ class OCREngineTesseract(OCREngine):
 
         return blocks
 
-    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
+    def recognize_text_color(self, image: QtGui.QPixmap) -> QtGui.QColor:
+        image_cv = numpy.array(image.toImage().copy().bits()).reshape((image.height(), image.width(), 4))
+
+        kernel = numpy.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        image_cv = cv2.filter2D(image_cv, -1, kernel)
+
+        final = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
+
+        final = final.reshape((final.shape[0] * final.shape[1], 3))
+        kmeans = KMeans(n_clusters=2)
+        kmeans.fit(final)
+
+        r, g, b = kmeans.cluster_centers_[-1]
+
+        white_r, white_g, white_b = (255, 255, 255)
+        color_diffs = []
+        for color in kmeans.cluster_centers_:
+            cr, cg, cb = color
+            color_diff = sqrt((white_r - cr)**2 + (white_g - cg)**2 + (white_b - cb)**2)
+            color_diffs.append((color_diff, color))
+
+        r, g, b, = sorted(color_diffs, key=lambda x: x[0])[-1][1]
+
+        return QtGui.QColor(r, g, b)
+
+    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
         # TODO: get dpi from boxarea background
         # image.save('/tmp/1.png')
         # estimate: str = pytesseract.image_to_boxes(self.pixmap_to_pil(image))
@@ -106,6 +137,8 @@ class OCREngineTesseract(OCREngine):
         # print(text)
 
         if raw:
+            # Preprocess the image to find lines and scan line by line, maintaining whitespace
+
             image_cv2 = numpy.array(image.toImage().copy().bits()).reshape((image.height(), image.width(), 4))
 
             blur = cv2.GaussianBlur(image_cv2, (3, 3), 0)
@@ -154,10 +187,15 @@ class OCREngineTesseract(OCREngine):
 
             return [block]
         else:
-            hocr = pytesseract.image_to_pdf_or_hocr(self.pixmap_to_pil(image), extension='hocr', lang=language.pt2t)
+            hocr = pytesseract.image_to_pdf_or_hocr(self.pixmap_to_pil(image), extension='hocr', lang=language.pt2t, config=f'--psm {psm_override}')
 
             if isinstance(hocr, bytes):
-                return self.parse_hocr(hocr, image.size(), px_per_mm)
+                blocks = self.parse_hocr(hocr, image.size(), px_per_mm)
+
+                # for block in blocks:
+                #     block.foreground_color = self.recognize_text_color(image.copy(block.bbox))
+
+                return blocks
 
 
 class OCREngineManager():

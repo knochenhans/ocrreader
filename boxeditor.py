@@ -1,8 +1,7 @@
-from enum import Enum, auto
 import math
+from enum import Enum, auto
 
 import cv2
-import enchant
 import numpy
 from iso639 import Lang
 from odf import style
@@ -46,23 +45,35 @@ class BoxEditor(QtWidgets.QGraphicsView):
         self.setMouseTracking(True)
 
     def load_page(self, page: Page):
-        self.custom_scene.clear()
-        self.custom_scene.box_counter = 0
-        # self.custom_scene.current_box = None
-        self.custom_scene.set_page_as_background(page)
+        self.scene().clear()
+        self.scene().box_counter = 0
+        self.scene().header_item = None
+        self.scene().footer_item = None
+        # self.scene().current_box = None
+        self.scene().set_page_as_background(page)
 
         self.setEnabled(True)
         self.current_page = page
-        self.custom_scene.current_page = self.current_page
+        self.scene().current_page = self.current_page
 
         for box_data in page.box_datas:
             # Restore existing boxes for this page
-            self.custom_scene.restore_box(box_data)
+            self.scene().restore_box(box_data)
 
-        # TODO: Check if there’s a way to avoid checking current_box to find out if box is resized
-        self.custom_scene.current_box = None
+        # Restore header and footer box
+        if self.project:
+            if self.project.header_y:
+                self.scene().add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.project.header_y)
+            if self.project.footer_y:
+                self.scene().add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.project.footer_y)
 
-        self.property_editor.recognition_widget.reset()
+        # TODO: Check if there’s a way to avoid checking current_box to find out if box is currently being resized
+        self.scene().current_box = None
+
+        self.property_editor.box_widget.reset()
+        self.property_editor.box_widget
+
+        # self.scene().focus
 
     def scene(self):
         return self.custom_scene
@@ -206,7 +217,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
 
         self.properties = BoxData()
-        self.properties.language = self.custom_scene.project.default_language
+        self.properties.language = self.scene().project.default_language
 
         self.setRect(rect)
         self.updateProperties()
@@ -476,8 +487,8 @@ class Box(QtWidgets.QGraphicsRectItem):
     def recognize_text(self) -> None:
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
-            button = QtWidgets.QMessageBox.question(self.custom_scene.parent(), self.custom_scene.tr('Recognize again?', 'dialog_recognize_again_title'),
-                                                    self.custom_scene.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+            button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
+                                                    self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.Yes:
                 self.scene().recognize_box(self)
@@ -487,8 +498,8 @@ class Box(QtWidgets.QGraphicsRectItem):
     def recognize_text_raw(self) -> None:
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
-            button = QtWidgets.QMessageBox.question(self.custom_scene.parent(), self.custom_scene.tr('Recognize again?', 'dialog_recognize_again_title'),
-                                                    self.custom_scene.tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+            button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
+                                                    self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.Yes:
                 self.scene().recognize_box(self, True)
@@ -497,7 +508,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def get_image(self) -> QtGui.QPixmap:
         '''Return part of the image within selection'''
-        image: QtGui.QPixmap = self.custom_scene.image
+        image: QtGui.QPixmap = self.scene().image
         return image.copy(self.properties.rect)
 
     def set_type_to_text(self) -> None:
@@ -531,7 +542,7 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
             title = 'Footer'
             rect.setTop(y)
             rect.setBottom(page_size.height())
-        
+
         self.setRect(rect)
 
         brush = QtGui.QBrush(QtGui.QColor(128, 0, 200, 150))
@@ -552,7 +563,7 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
 
         self.line = QtWidgets.QGraphicsLineItem(self)
         self.line.setPen(QtGui.QPen(QtGui.QColor(128, 0, 200, 200), 3, QtCore.Qt.SolidLine))
-        self.line.setPos(self.rect().topLeft())
+        self.line.setPos(0, y)
         self.line.setLine(0, 0, self.rect().width(), 0)
 
     def update_title(self):
@@ -560,10 +571,9 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
 
     def update_bottom_position(self, y: float):
         rect = self.rect()
-        rect.setHeight(y)
+        rect.setBottom(y)
         self.setRect(rect)
         self.line.setPos(0, y)
-        # self.line.setLine(0, 0, self.rect().width(), 0)
 
     def update_top_position(self, y: float):
         rect = self.rect()
@@ -571,7 +581,6 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
         self.setRect(rect)
         self.line.setPos(0, y)
         self.title.setPos(5, self.rect().y() + 5)
-        # self.line.setLine(0, 0, self.rect().width(), 0)
 
 
 class BOX_EDITOR_SCENE_STATE(Enum):
@@ -599,10 +608,17 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         # Setup connection to and from property editor
         self.selectionChanged.connect(self.update_property_editor)
-        self.property_editor.recognition_widget.text_edit.editingFinished.connect(self.update_text)
-        self.property_editor.recognition_widget.language_combo.currentTextChanged.connect(self.update_language)
+        self.property_editor.box_widget.text_edit.editingFinished.connect(self.update_text)
+        self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         self.state = BOX_EDITOR_SCENE_STATE.IDLE
+
+    # def cleanup(self):
+    #     self.clear()
+    #     self.project = None
+    #     self.current_page = None
+    #     self.image = None
+    #     self.box_counter = 0
 
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
@@ -654,7 +670,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             if button == QtWidgets.QMessageBox.No:
                 return
         for item in self.selectedItems():
-            item.properties.text = self.property_editor.recognition_widget.text_edit.document()
+            item.properties.text = self.property_editor.box_widget.text_edit.document()
             self.update_property_editor()
 
     def update_language(self, text) -> None:
@@ -664,7 +680,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def update_property_editor(self) -> None:
         '''Update property editor with the currently selected box'''
         for item in self.selectedItems():
-            self.property_editor.recognition_widget.box_selected(item.properties)
+            self.property_editor.box_widget.box_selected(item.properties)
 
     def shift_ordering(self, box: Box, shift_by: int):
         ordered_items = sorted(self.items(), key=lambda x: x.properties.order)
@@ -684,7 +700,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Add new box and give it an order number'''
 
         self.current_box = Box(rect, self.engine_manager, self)
-        self.current_page.box_datas.append(self.current_box.properties)
+        if self.current_page:
+            self.current_page.box_datas.append(self.current_box.properties)
         self.current_box.properties.order = order
 
         self.addItem(self.current_box)
@@ -797,6 +814,29 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         mouse_origin = self.views()[0].mapFromGlobal(QtGui.QCursor.pos())
         return self.views()[0].mapToScene(mouse_origin)
 
+    def add_header_footer(self, type: HEADER_FOOTER_ITEM_TYPE, y: float):
+        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+            if self.header_item:
+                self.removeItem(self.header_item)
+        else:
+            if self.footer_item:
+                self.removeItem(self.footer_item)
+
+        page_size = QtCore.QSizeF(self.width(), self.height())
+        item = HeaderFooterItem(type, page_size, y)
+        self.addItem(item)
+        item.setFocus()
+        item.update_title()
+
+        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+            self.header_item = item
+            if self.project:
+                self.project.header_y = y
+        else:
+            self.footer_item = item
+            if self.project:
+                self.project.footer_y = y
+
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''
         if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
@@ -812,7 +852,14 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         self.state = BOX_EDITOR_SCENE_STATE.DRAW_BOX
         elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
             if self.header_item:
-                self.state = BOX_EDITOR_SCENE_STATE.IDLE
+                if self.project:
+                    self.project.header_y = self.header_item.rect().bottom()
+            self.state = BOX_EDITOR_SCENE_STATE.IDLE
+        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
+            if self.footer_item:
+                if self.project:
+                    self.project.footer_y = self.footer_item.rect().top()
+            self.state = BOX_EDITOR_SCENE_STATE.IDLE
 
         super().mousePressEvent(event)
 
@@ -853,8 +900,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # Sort by order number
         boxes.sort(key=lambda x: x.properties.order)
 
-        page_size = QtCore.QSizeF(self.width(), self.height())
-
         if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
             if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
                 match event.key():
@@ -882,19 +927,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         for box in boxes:
                             self.remove_box(box)
                     case QtCore.Qt.Key_H:
-                        # Add header position line (attached to mouse y position)
+                        self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.get_mouse_position().y())
                         self.state = BOX_EDITOR_SCENE_STATE.PLACE_HEADER
-                        self.header_item = HeaderFooterItem(HEADER_FOOTER_ITEM_TYPE.HEADER, page_size, self.get_mouse_position().y())
-                        self.addItem(self.header_item)
-                        self.header_item.setFocus()
-                        self.header_item.update_title()
                     case QtCore.Qt.Key_F:
-                        # Add footer position line (attached to mouse y position)
+                        self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
                         self.state = BOX_EDITOR_SCENE_STATE.PLACE_FOOTER
-                        self.footer_item = HeaderFooterItem(HEADER_FOOTER_ITEM_TYPE.FOOTER, page_size, self.get_mouse_position().y())
-                        self.addItem(self.footer_item)
-                        self.footer_item.setFocus()
-                        self.footer_item.update_title()
                     case _:
                         super().keyPressEvent(event)
         else:

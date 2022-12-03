@@ -53,38 +53,12 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addAction(self.load_image_action)
         file_menu.addAction(self.open_project_action)
         file_menu.addAction(self.save_project_action)
+        file_menu.addAction(self.close_project_action)
         file_menu.addAction(self.export_action)
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
 
-        system_lang = Lang(QtCore.QLocale().system().languageToCode(QtCore.QLocale().system().language()))
-        self.project = Project(default_language=system_lang)
-
-        self.engine_manager = OCREngineManager([OCREngineTesseract()])
-
-        self.splitter_1 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-
-        self.page_icon_view = PagesIconView(self, self.project)
-        self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
-
-        self.splitter_1.addWidget(self.page_icon_view)
-
-        self.splitter_2 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-
-        self.splitter_1.addWidget(self.splitter_2)
-
-        self.property_editor = PropertyEditor(self, self.engine_manager, self.project)
-        self.box_editor = BoxEditor(self, self.engine_manager, self.property_editor, self.project)
-        self.box_editor.property_editor = self.property_editor
-        self.box_editor.setMinimumWidth(500)
-        # self.property_editor.box_editor = self.box_editor
-        self.property_editor.setMinimumWidth(200)
-
-        self.splitter_2.addWidget(self.box_editor)
-        self.splitter_2.addWidget(self.property_editor)
-        self.setCentralWidget(self.splitter_1)
-        self.splitter_1.setSizes([1, 1])
-        self.splitter_2.setSizes([1, 1])
+        self.setup_project()
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))
 
@@ -93,8 +67,48 @@ class MainWindow(QtWidgets.QMainWindow):
     def __del__(self):
         self.temp_dir.cleanup()
 
+    def setup_project(self, project = None) -> None:
+        self.engine_manager = OCREngineManager([OCREngineTesseract()])
+
+        if project:
+            self.project = project
+        else:
+            # Setup an empty default project
+            system_lang = Lang(QtCore.QLocale().system().languageToCode(QtCore.QLocale().system().language()))
+            self.project = Project(name=self.tr('New Project', 'new_project'), default_language=system_lang)
+
+        self.property_editor = PropertyEditor(self, self.engine_manager, self.project)
+        self.property_editor.setMinimumWidth(200)
+        self.property_editor.project_widget.default_paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
+        self.property_editor.page_widget.paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
+
+        self.box_editor = BoxEditor(self, self.engine_manager, self.property_editor, self.project)
+        self.box_editor.property_editor = self.property_editor
+        self.box_editor.setMinimumWidth(500)
+
+        self.page_icon_view = PagesIconView(self, self.project)
+        self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
+
+        self.splitter_2 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.splitter_2.addWidget(self.box_editor)
+        self.splitter_2.addWidget(self.property_editor)
+        self.splitter_2.setSizes([1, 1])
+
+        self.splitter_1 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.splitter_1.addWidget(self.page_icon_view)
+        self.splitter_1.addWidget(self.splitter_2)
+        self.splitter_1.setSizes([1, 1])
+
+        self.setCentralWidget(self.splitter_1)
+
+        self.export_action.setDisabled(True)
+        self.save_project_action.setDisabled(True)
+        self.analyze_layout_action.setDisabled(True)
+        self.analyze_layout_and_recognize_action.setDisabled(True)
+        self.close_project_action.setDisabled(True)
+
     def setup_actions(self) -> None:
-        self.exit_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-line.png'), self.tr('&Exit', 'action_exit'), self)
+        self.exit_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-circle-line.png'), self.tr('&Exit', 'action_exit'), self)
         self.exit_action.setStatusTip(self.tr('Exit OCR Reader', 'status_exit'))
         self.exit_action.triggered.connect(self.close)
         self.exit_action.setShortcut(QtGui.QKeySequence('Ctrl+q'))
@@ -129,6 +143,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.analyze_layout_and_recognize_action.triggered.connect(self.analyze_layout_and_recognize)
         self.analyze_layout_and_recognize_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+r'))
 
+        self.close_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-line.png'), self.tr('&Close project', 'action_close_project'), self)
+        self.close_project_action.setStatusTip(self.tr('Close project', 'status_close_project'))
+        self.close_project_action.triggered.connect(self.close_current_project)
+        self.close_project_action.setShortcut(QtGui.QKeySequence('Ctrl+w'))
+
     def page_selected(self, index: QtCore.QModelIndex):
         if self.box_editor.current_page == index.data(QtCore.Qt.UserRole):
             return
@@ -136,6 +155,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.box_editor.load_page(index.data(QtCore.Qt.UserRole))
         self.project.current_page_idx = self.page_icon_view.currentIndex().row()
         self.box_editor.scene().update()
+        self.box_editor.setFocus()
+
+    def project_set_active(self):
+        self.export_action.setEnabled(True)
+        self.save_project_action.setEnabled(True)
+        self.analyze_layout_action.setEnabled(True)
+        self.analyze_layout_and_recognize_action.setEnabled(True)
+        self.close_project_action.setEnabled(True)
 
     def load_image_dialog(self) -> None:
         filenames = QtWidgets.QFileDialog.getOpenFileNames(parent=self, caption=self.tr('Load Image or PDF', 'status_load_image'),
@@ -149,6 +176,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if filenames[1]:
             # Load first page
             self.box_editor.load_page(pages[0])
+
+        self.project_set_active()
 
     def load_image(self, filename: str) -> list:
         pages = []
@@ -176,6 +205,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 self.statusBar().showMessage(self.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
 
+        if pages:
+            self.project_set_active()
+
         return pages
 
     def open_project(self) -> None:
@@ -183,28 +215,41 @@ class MainWindow(QtWidgets.QMainWindow):
                                                                  filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
 
         if project_filename:
+            self.close_project()
+
             project_file = QtCore.QFile(project_filename)
             project_file.open(QtCore.QIODevice.ReadOnly)
             input = QtCore.QDataStream(project_file)
 
             # Read project
-            self.project = Project()
-            self.project.read(input)
+            project = Project()
+            try:
+                project.read(input)
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(self, 'Error', str(e))
+                project_file.close()
 
-            project_file.close()
+                self.setup_project()
+            else:
+                project_file.close()
 
-            # Reconstruct pages and page elements from project file
-            for page in self.project.pages:
-                self.page_icon_view.load_page(page)
+                self.setup_project(project)
 
-            index = self.page_icon_view.model().index(self.project.current_page_idx, 0)
+                # Reconstruct pages and page elements from project file
+                for page in project.pages:
+                    self.page_icon_view.load_page(page)
 
-            self.page_icon_view.setCurrentIndex(index)
-            self.page_selected(index)
+                # index = self.page_icon_view.model().index(self.project.current_page_idx, 0)
 
-            self.last_project_filename = project_filename
+                # self.page_icon_view.setCurrentIndex(index)
+                # self.page_selected(index)
 
-            self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + project_file.fileName())
+                self.box_editor.load_page(project.pages[project.current_page_idx])
+
+                self.last_project_filename = project_filename
+
+                self.project_set_active()
+                self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + project_file.fileName())
 
     def save_project(self) -> None:
         project_filename = self.last_project_filename
@@ -252,8 +297,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_project_filename = filename
         self.last_project_directory = os.path.dirname(os.path.abspath(self.last_project_filename))
 
+    def close_project(self) -> None:
+        # self.page_icon_view.cleanup()
+        # self.box_editor.cleanup()
+        # self.property_editor.cleanup()
+        self.page_icon_view.close()
+        self.box_editor.close()
+        self.property_editor.close()
+
+    def close_current_project(self) -> None:
+        self.close_project()
+        self.setup_project()
+
     def export_project(self) -> None:
-        self.box_editor.export_odt()
+        # self.box_editor.export_odt()
+
+        text = ''
+
+        for page in self.project.pages:
+            for box_datas in page.box_datas:
+                text += box_datas.text.toPlainText()
+
+        print(text)
 
         self.statusBar().showMessage(self.tr('Project exported', 'status_exported'))
 

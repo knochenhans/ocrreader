@@ -8,15 +8,18 @@ from boxdata import BoxData
 
 
 class Page():
-    def __init__(self, image_path: str = '', name: str = '', paper_size_str: str = ''):
+    def __init__(self, image_path: str = '', name: str = '', paper_size: str = ''):
         self.image_path = image_path
         self.name = name
         #self.blocks = []
-        self.paper_size = paper_size_str
         self.box_datas = []
 
-        if paper_size_str:
-            self.px_per_mm = self.calc_px_per_mm(paper_size_str)
+        self.set_paper_size(paper_size)
+
+    def set_paper_size(self, paper_size):
+        self.paper_size = paper_size
+        if paper_size:
+            self.px_per_mm = self.calc_px_per_mm(SIZES[paper_size])
         else:
             self.px_per_mm = 0.0
 
@@ -40,7 +43,7 @@ class Page():
 
     def read(self, file: QtCore.QDataStream):
         self.image_path = file.readString()
-        self.name = file.readString() 
+        self.name = file.readString()
         self.paper_size = file.readString()
         self.px_per_mm = file.readFloat()
 
@@ -53,13 +56,17 @@ class Page():
 
 
 class Project():
-    # def __init__(self, name=self.tr('New Project', 'new_project'), default_language: Lang = Lang('English'), default_paper_size: str = SIZES['a4']):
-    def __init__(self, name='New Project', default_language: Lang = Lang('English'), default_paper_size: str = SIZES['a4']):
+    def __init__(self, name='', default_language: Lang = Lang('English'), default_paper_size: str = 'a4'):
         self.name = name
         self.default_language = default_language
         self.default_paper_size = default_paper_size
         self.current_page_idx = 0
         self.pages: list[Page] = []
+        self.header_y = 0.0
+        self.footer_y = 0.0
+
+        # Save format revision for loading
+        self.format_revision = 2
 
     # def add_page(self, image_path: str, paper_size: str = SIZES['a4']) -> None:
     #     self.pages.append(Page(image_path, ntpath.basename(image_path), paper_size))
@@ -68,20 +75,30 @@ class Project():
         self.pages.append(page)
 
     def write(self, file: QtCore.QDataStream):
+        file.writeInt16(self.format_revision)
         file.writeString(self.name)
         file.writeString(self.default_language.name)
         file.writeString(self.default_paper_size)
         file.writeInt16(self.current_page_idx)
+        file.writeFloat(self.header_y)
+        file.writeFloat(self.footer_y)
 
         file.writeInt16(len(self.pages))
         for page in self.pages:
             page.write(file)
 
     def read(self, file: QtCore.QDataStream):
+        format_revision = file.readInt16()
+
+        if format_revision != self.format_revision:
+            raise ValueError(f'Revision of project file is {format_revision} is incompatible with {self.format_revision}. Project file cannot be loaded')
+
         self.name = file.readString()
         self.default_language = Lang(file.readString())
         self.default_paper_size = file.readString()
         self.current_page_idx = file.readInt16()
+        self.header_y = file.readFloat()
+        self.footer_y = file.readFloat()
 
         page_count = file.readInt16()
         for p in range(page_count):

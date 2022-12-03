@@ -1,5 +1,6 @@
 from PySide6 import QtGui, QtCore, QtWidgets
-from project import Page
+from project import Page, Project
+
 
 class StyledItemDelegate(QtWidgets.QStyledItemDelegate):
     def initStyleOption(self, option, index) -> None:
@@ -37,7 +38,7 @@ class PagesListStore(QtGui.QStandardItemModel):
 
 
 class PagesIconView(QtWidgets.QListView):
-    def __init__(self, parent, project) -> None:
+    def __init__(self, parent, project: Project) -> None:
         super().__init__(parent)
         model = PagesListStore(self)
         self.setModel(model)
@@ -50,3 +51,6 @@ class PagesIconView(QtWidgets.QListView):
 
     def load_page(self, page: Page):
         self.model().add_page(page)
+
+    def cleanup(self) -> None:
+        self.model().removeRows(0, self.model().rowCount())

@@ -11,6 +11,7 @@ class OCRResultBlock(HOCR_Data):
         self.image_size = image_size
         self.px_per_mm = px_per_mm
         self.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.GeneralFont)
+        self.foreground_color = QtGui.QColorConstants.Svg.black
         if block:
             super().__init__(block['title'])
 
@@ -75,8 +76,9 @@ class OCRResultBlock(HOCR_Data):
 
                 height = self.px_per_mm * paragraph.get_avg_height() * 3
 
-                format.setFontPointSize(round(height))
                 format.setFont(self.font)
+                format.setFontPointSize(round(height))
+                format.setForeground(self.foreground_color)
                 cursor.setCharFormat(format)
                 # cursor.insertBlock(block_format)
                 # cursor.deletePreviousChar()

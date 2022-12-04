@@ -14,7 +14,7 @@ from boxeditor import BoxEditor
 from ocrengine import OCREngineManager, OCREngineTesseract
 from pages_icon_view import PagesIconView
 from project import Page, Project
-from propertyeditor import PropertyEditor
+from property_editor import PropertyEditor
 
 
 class MainWindow(QtWidgets.QMainWindow):

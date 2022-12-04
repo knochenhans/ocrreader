@@ -1,5 +1,5 @@
 import unittest
-from propertyeditor import DocumentHelper
+from property_editor import DocumentHelper
 from PySide6 import QtGui
 
 class HyphenRemoverTest(unittest.TestCase):

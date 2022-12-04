@@ -1,6 +1,6 @@
 from PySide6 import QtCore
 
-from hocrdata import HOCR_Data
+from hocr_data import HOCR_Data
 from ocr_result_line import OCRResultLine
 
 

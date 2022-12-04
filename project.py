@@ -4,7 +4,7 @@ from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui
 
-from boxdata import BoxData
+from box_data import BoxData
 
 
 class Page():

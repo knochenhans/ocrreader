@@ -1,0 +1,103 @@
+body {
+	font-family: sans-serif;
+}
+
+body.toc > h3 {
+	border-top: 1px solid black;
+	border-bottom: 1px solid black;
+	background: beige;
+	text-align: center;
+	font-weight: normal;
+}
+
+body.toc > ul {
+	list-style-type: none;
+	padding: 0;
+	border-bottom: 1px solid black;
+}
+
+body.toc > ul > li {
+	border-top: 1px solid black;
+}
+
+.content-highlight {
+	color: red;
+}
+
+p {
+	margin: 0;
+	text-indent: 1em;
+}
+
+p.first-par {
+	text-indent: 0;
+}
+
+p > img,
+li > img {
+	height: 1.3em;
+	margin: 0 0.5em;
+	vertical-align: middle;
+}
+
+figure {
+	margin: 1em 0 1em 0;
+}
+
+figcaption {
+	font-weight: bold;
+	margin: 0.5em 0 1em 0;
+}
+
+div.block {
+	padding: 2em;
+	margin: 1em;
+	border: 1px solid black;
+}
+
+h1.topic {
+	font-size: 300%;
+}
+
+p.topic-intro {
+	font-size: 125%;
+	font-weight: bold;
+	margin-bottom: 1em;
+	text-indent: 0;
+}
+
+/*p:first-letter {
+  font-size: 2em;
+  font-weight: bold;
+}*/
+
+.author {
+	float: right;
+	text-align: right;
+}
+
+.product {
+	font-size: 75%;
+	text-indent: 0;
+}
+
+.code-block {
+	padding: 1em;
+	margin: 1em;
+	border: 1px solid black;
+}
+
+.code-block > * {
+	text-indent: 0;
+}
+
+.code-block > .code {
+	font-family: monospace;
+	font-size: 110%;
+	white-space: pre;
+}
+
+.title {
+	margin-top: 1em;
+	font-weight: bold;
+}

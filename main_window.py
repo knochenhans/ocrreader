@@ -10,8 +10,9 @@ from pdf2image import convert_from_path
 from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxeditor import BoxEditor
-from ocrengine import OCREngineManager, OCREngineTesseract
+from box_editor import BoxEditor
+from exporter import ExporterPlainText, ExporterEPUB, ExporterManager
+from ocr_engine import OCREngineManager, OCREngineTesseract
 from pages_icon_view import PagesIconView
 from project import Page, Project
 from property_editor import PropertyEditor
@@ -46,6 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(self.open_project_action)
         toolbar.addAction(self.save_project_action)
         toolbar.addAction(self.export_action)
+        toolbar.addAction(self.export_txt_action)
+        toolbar.addAction(self.export_epub_action)
         toolbar.addAction(self.analyze_layout_action)
         toolbar.addAction(self.analyze_layout_and_recognize_action)
 
@@ -55,6 +58,8 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addAction(self.save_project_action)
         file_menu.addAction(self.close_project_action)
         file_menu.addAction(self.export_action)
+        file_menu.addAction(self.export_txt_action)
+        file_menu.addAction(self.export_epub_action)
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
 
@@ -64,10 +69,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.temp_dir = tempfile.TemporaryDirectory()
 
+        self.exporter_manager = ExporterManager()
+        self.exporter_manager.add_exporter('EPUB', ExporterEPUB('epub', self.tr('EPUB file (*.epub)', 'filter_epub_export')))
+        self.exporter_manager.add_exporter('PlainText', ExporterPlainText('txt', self.tr('Text file (*.txt)', 'filter_plaintext_export')))
+
     def __del__(self):
         self.temp_dir.cleanup()
 
-    def setup_project(self, project = None) -> None:
+    def setup_project(self, project=None) -> None:
         self.engine_manager = OCREngineManager([OCREngineTesseract()])
 
         if project:
@@ -122,6 +131,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.export_action.setStatusTip(self.tr('Export Project', 'status_export_project'))
         self.export_action.triggered.connect(self.export_project)
         self.export_action.setShortcut(QtGui.QKeySequence('Ctrl+e'))
+
+        self.export_txt_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as Plain Text', 'action_export_project_txt'), self)
+        self.export_txt_action.setStatusTip(self.tr('Export Project as Plain Text', 'action_export_project_txt'))
+        self.export_txt_action.triggered.connect(self.export_plaintext)
+
+        self.export_epub_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as EPUB', 'action_export_project_epub'), self)
+        self.export_epub_action.setStatusTip(self.tr('Export Project as EPUB', 'action_export_project_epub'))
+        self.export_epub_action.triggered.connect(self.export_epub)
 
         self.save_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/save-line.png'), self.tr('&Save Project', 'action_save_project'), self)
         self.save_project_action.setStatusTip(self.tr('Save Project', 'status_save_project'))
@@ -310,17 +327,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setup_project()
 
     def export_project(self) -> None:
-        # self.box_editor.export_odt()
+        self.run_exporter('PlainText')
 
-        text = ''
+    def run_exporter(self, id):
+        exporter = self.exporter_manager.get_exporter(id)
+
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, caption=self.tr('Export to', 'dialog_export_project'), filter=exporter.filter)[0]
+
+        exporter.open(filename, self.project.name)
 
         for page in self.project.pages:
+            exporter.new_page()
             for box_datas in page.box_datas:
-                text += box_datas.text.toPlainText()
+                exporter.write_box(box_datas)
 
-        print(text)
+        exporter.close()
 
-        self.statusBar().showMessage(self.tr('Project exported', 'status_exported'))
+        self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
+
+    def export_plaintext(self):
+        self.run_exporter('PlainText')
+
+    def export_epub(self):
+        self.run_exporter('EPUB')
+
+    # def export_odt(self):
+    #     # text = QtGui.QTextDocument()
+    #     # cursor = QtGui.QTextCursor(text)
+
+    #     boxes = self.scene().selectedItems()
+
+    #     textdoc = OpenDocumentText()
+
+    #     for b, box in enumerate(boxes):
+    #         # cursor.insertHtml(box.properties.ocr_result_block.get_text().toHtml())
+
+    #         # if b < (len(boxes) - 1):
+    #         # cursor.insertText('\n\n')
+
+    #         p = P(text=box.properties.ocr_result_block.get_text(self.project.default_paper_size).toPlainText())
+    #         textdoc.text.addElement(p)
+
+    #     textdoc.save('/tmp/headers.odt')
+
+    #     # print(text.toPlainText())
 
     def analyze_layout(self) -> None:
         self.box_editor.analyze_layout()

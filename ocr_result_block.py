@@ -2,7 +2,7 @@ from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from document_helper import DocumentHelper
-from hocrdata import HOCR_Data
+from hocr_data import HOCR_Data
 from ocr_result_paragraph import OCRResultParagraph
 from ocr_result_word import OCRResultWord
 

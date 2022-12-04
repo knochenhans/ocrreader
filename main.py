@@ -2,7 +2,7 @@ import sys
 
 from PySide6 import QtCore
 
-from mainwindow import MainWindow
+from main_window import MainWindow
 from ocrreader import PyOCR
 
 if __name__ == '__main__':

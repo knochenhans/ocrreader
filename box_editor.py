@@ -10,8 +10,8 @@ from odf.opendocument import OpenDocumentText
 from odf.text import P
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxdata import BOX_DATA_TYPE, BoxData
-from ocrengine import OCREngineManager
+from box_data import BOX_DATA_TYPE, BoxData
+from ocr_engine import OCREngineManager
 from project import Page, Project
 
 
@@ -144,27 +144,6 @@ class BoxEditor(QtWidgets.QGraphicsView):
 
     #     boxes.sort(key=lambda x: x.properties.order)
     #     return boxes
-
-    def export_odt(self):
-        # text = QtGui.QTextDocument()
-        # cursor = QtGui.QTextCursor(text)
-
-        boxes = self.scene().selectedItems()
-
-        textdoc = OpenDocumentText()
-
-        for b, box in enumerate(boxes):
-            # cursor.insertHtml(box.properties.ocr_result_block.get_text().toHtml())
-
-            # if b < (len(boxes) - 1):
-            # cursor.insertText('\n\n')
-
-            p = P(text=box.properties.ocr_result_block.get_text(self.project.default_paper_size).toPlainText())
-            textdoc.text.addElement(p)
-
-        textdoc.save('/tmp/headers.odt')
-
-        # print(text.toPlainText())
 
     def pixmap_to_cv2(self, pixmap: QtGui.QPixmap):
         image = pixmap.toImage().copy()
@@ -792,7 +771,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                             new_box.properties.ocr_result_block.translate(dist.toPoint())
 
                             new_box.properties.words = new_box.properties.ocr_result_block.get_words()
-                            new_box.properties.text = new_box.properties.ocr_result_block.get_text(True)
+                            new_box.properties.text = new_box.properties.ocr_result_block.get_text(True, remove_hyphens)
 
                             new_box.properties.recognized = True
                             new_box.update()

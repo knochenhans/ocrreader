@@ -6,9 +6,9 @@ from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from boxeditor import BoxData
+from box_editor import BoxData
 from document_helper import DocumentHelper
-from ocrengine import OCREngineManager
+from ocr_engine import OCREngineManager
 from project import Project
 
 
@@ -161,9 +161,13 @@ class PropertyEditor(QtWidgets.QToolBox):
         # Page
         self.page_widget = PagePage(self, self.project)
 
+        self.project_widget.default_paper_size_combo.blockSignals(True)
+
         for size_key in SIZES:
             self.page_widget.paper_size_combo.addItem(SIZES[size_key], size_key)
             self.project_widget.default_paper_size_combo.addItem(SIZES[size_key], size_key)
+
+        self.project_widget.default_paper_size_combo.blockSignals(False)
 
         self.addItem(self.page_widget, self.tr('Page', 'page'))
 

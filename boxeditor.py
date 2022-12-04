@@ -742,6 +742,12 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
+        remove_hyphens = False
+
+        # TODO: Implement an option for this
+        if box.properties.language == Lang('German'):
+            remove_hyphens = True
+
         blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language, raw)
 
         is_image = False
@@ -758,7 +764,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     if block.get_avg_confidence() > 30:
                         box.properties.ocr_result_block = block
                         box.properties.words = block.get_words()
-                        box.properties.text = block.get_text(True)
+                        box.properties.text = block.get_text(True, remove_hyphens)
                         box.properties.recognized = True
                     else:
                         is_image = True

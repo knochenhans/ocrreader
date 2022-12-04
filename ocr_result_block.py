@@ -1,15 +1,18 @@
+from iso639 import Lang
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from document_helper import DocumentHelper
 from hocrdata import HOCR_Data
 from ocr_result_paragraph import OCRResultParagraph
 from ocr_result_word import OCRResultWord
 
 
 class OCRResultBlock(HOCR_Data):
-    def __init__(self, image_size: QtCore.QSize = QtCore.QSize(), px_per_mm: float = 0.0, block=None):
+    def __init__(self, image_size: QtCore.QSize = QtCore.QSize(), px_per_mm: float = 0.0, block=None, language: Lang = Lang('English')):
         self.paragraphs = []
         self.image_size = image_size
         self.px_per_mm = px_per_mm
+        self.language = language
         self.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.GeneralFont)
         self.foreground_color = QtGui.QColorConstants.Svg.black
         if block:
@@ -62,7 +65,7 @@ class OCRResultBlock(HOCR_Data):
 
         return avg_confidence
 
-    def get_text(self, diagnostics: bool = False) -> QtGui.QTextDocument:
+    def get_text(self, diagnostics: bool = False, remove_hyphens=False) -> QtGui.QTextDocument:
         '''Get text as QTextDocument'''
         document = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(document)
@@ -100,6 +103,10 @@ class OCRResultBlock(HOCR_Data):
                         cursor.insertText('\n')
                 if p < (len(self.paragraphs) - 1):
                     cursor.insertText('\n\n')
+
+        if remove_hyphens:
+            document_helper = DocumentHelper(document, self.language.pt1)
+            document = document_helper.removeHyphens()
 
         return document
 

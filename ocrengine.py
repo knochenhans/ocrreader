@@ -51,14 +51,14 @@ class OCREngineTesseract(OCREngine):
         super().__init__('Tesseract')
         self.languages = pytesseract.get_languages()
 
-    def parse_hocr(self, hocr: bytes, image_size: QtCore.QSize, px_per_mm: float) -> list[OCRResultBlock]:
+    def parse_hocr(self, hocr: bytes, image_size: QtCore.QSize, px_per_mm: float, language: Lang) -> list[OCRResultBlock]:
         '''Parse box into result block'''
         soup = BeautifulSoup(hocr.decode(), 'html.parser')
 
         blocks = []
 
         for div in soup.find_all('div', class_='ocr_carea'):
-            blocks.append(OCRResultBlock(image_size, px_per_mm, block=div))
+            blocks.append(OCRResultBlock(image_size, px_per_mm, block=div, language=language))
 
         # Add safety margin sometimes needed for correct recognition
         margin = 5
@@ -136,6 +136,8 @@ class OCREngineTesseract(OCREngine):
 
         # print(text)
 
+        blocks = []
+
         if raw:
             # Preprocess the image to find lines and scan line by line, maintaining whitespace
 
@@ -185,17 +187,17 @@ class OCREngineTesseract(OCREngine):
             block.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.FixedFont)
             block.paragraphs.append(paragraph)
 
-            return [block]
+            blocks = [block]
         else:
             hocr = pytesseract.image_to_pdf_or_hocr(self.pixmap_to_pil(image), extension='hocr', lang=language.pt2t, config=f'--psm {psm_override}')
 
             if isinstance(hocr, bytes):
-                blocks = self.parse_hocr(hocr, image.size(), px_per_mm)
+                blocks = self.parse_hocr(hocr, image.size(), px_per_mm, language)
 
                 # for block in blocks:
                 #     block.foreground_color = self.recognize_text_color(image.copy(block.bbox))
 
-                return blocks
+        return blocks
 
 
 class OCREngineManager():

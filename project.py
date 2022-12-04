@@ -66,7 +66,7 @@ class Project():
         self.footer_y = 0.0
 
         # Save format revision for loading
-        self.format_revision = 3
+        self.format_revision = 4
 
     # def add_page(self, image_path: str, paper_size: str = SIZES['a4']) -> None:
     #     self.pages.append(Page(image_path, ntpath.basename(image_path), paper_size))

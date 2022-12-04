@@ -243,6 +243,21 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.color_image = BoxColor(brush_image, pen_image, brush_image_selected, pen_image_selected)
 
+        # Disabled box
+
+        brush_disabled = brush_text
+        brush_disabled = QtGui.QBrush(QtGui.QColor(35, 35, 35, 150))
+
+        brush_disabled_selected = brush_disabled
+
+        pen_disabled = pen_text
+        pen_disabled = QtGui.QPen(QtGui.QColor(35, 35, 35, 150))
+
+        pen_disabled_selected = pen_disabled
+        pen_disabled_selected = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
+
+        self.color_disabled = BoxColor(brush_disabled, pen_disabled, brush_disabled_selected, pen_disabled_selected)
+
     def scene(self):
         return self.custom_scene
 
@@ -292,10 +307,13 @@ class Box(QtWidgets.QGraphicsRectItem):
         '''Paint background and border using colors defined by type and update order number item'''
         color = BoxColor()
 
-        if self.properties.type == BOX_DATA_TYPE.TEXT:
-            color = self.color_text
+        if self.properties.export_enabled:
+            if self.properties.type == BOX_DATA_TYPE.TEXT:
+                color = self.color_text
+            else:
+                color = self.color_image
         else:
-            color = self.color_image
+            color = self.color_disabled
 
         if self.isSelected():
             painter.setPen(color.pen_selected)
@@ -552,6 +570,8 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
         self.line.setPos(0, y)
         self.line.setLine(0, 0, self.rect().width(), 0)
 
+        self.setZValue(10)
+
     def update_title(self):
         self.title.setPos(5, self.rect().y() + 5)
 
@@ -657,7 +677,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def update_tag(self) -> None:
         for item in self.selectedItems():
             item.properties.tag = self.property_editor.box_widget.tag_edit.text()
-   
+
     def update_class_str(self) -> None:
         for item in self.selectedItems():
             item.properties.class_str = self.property_editor.box_widget.class_str_edit.text()
@@ -670,6 +690,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Update property editor with the currently selected box'''
         for item in self.selectedItems():
             self.property_editor.box_widget.box_selected(item.properties)
+
+    def disable_boxes_in_header_footer(self) -> None:
+        for item in self.items():
+            if self.header_item:
+                if self.header_item.rect().contains(item.rect()):
+                    item.properties.export_enabled = False
+            if self.footer_item:
+                if self.footer_item.rect().contains(item.rect()):
+                    item.properties.export_enabled = False
 
     def shift_ordering(self, box: Box, shift_by: int):
         ordered_items = sorted(self.items(), key=lambda x: x.properties.order)
@@ -726,6 +755,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 item.properties.order = self.box_counter
                 self.box_counter += 1
                 item.update()
+
+    def toggle_export_enabled(self, box: Box) -> None:
+        box.properties.export_enabled = not box.properties.export_enabled
+        box.update()
 
     def recognize_box(self, box: Box, raw=False):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
@@ -927,6 +960,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     case QtCore.Qt.Key_F:
                         self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
                         self.state = BOX_EDITOR_SCENE_STATE.PLACE_FOOTER
+                    case QtCore.Qt.Key_D:
+                        for box in boxes:
+                            self.toggle_export_enabled(box)
                     case _:
                         super().keyPressEvent(event)
         else:

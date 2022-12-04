@@ -13,7 +13,7 @@ class BOX_DATA_TYPE(Enum):
 
 
 class BoxData():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), tag: str = '', class_str: str = '', words: list = None):
+    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), tag: str = '', class_str: str = '', export_enabled: bool = True, words: list = None):
         self.order = order
         self.rect = rect
         self.type = type
@@ -22,6 +22,8 @@ class BoxData():
         self.recognized = False
         self.tag = tag
         self.class_str = class_str
+        self.export_enabled = export_enabled
+
         self.ocr_result_block = ocr_result_block
         self.words = words
 
@@ -37,6 +39,7 @@ class BoxData():
         file.writeBool(self.recognized)
         file.writeString(self.tag)
         file.writeString(self.class_str)
+        file.writeBool(self.export_enabled)
 
         self.ocr_result_block.write(file)
 
@@ -58,6 +61,7 @@ class BoxData():
         self.recognized = file.readBool()
         self.tag = file.readString()
         self.class_str = file.readString()
+        self.export_enabled = file.readBool()
 
         self.ocr_result_block = OCRResultBlock()
         self.ocr_result_block.read(file)

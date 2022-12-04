@@ -329,11 +329,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def run_exporter(self, id):
         exporter = self.exporter_manager.get_exporter(id)
 
+        # Exclude boxes in header or footer area
+        self.box_editor.scene().disable_boxes_in_header_footer()
+
         if exporter.open(self.temp_dir, self.project.name):
             for p, page in enumerate(self.project.pages):
-                exporter.new_page()
+                if p > 0:
+                    exporter.new_page()
                 for box_datas in page.box_datas:
-                    exporter.write_box(box_datas, page, p)
+                    if box_datas.export_enabled:
+                        exporter.write_box(box_datas, page, p)
 
             exporter.close()
 

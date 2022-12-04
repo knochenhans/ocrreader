@@ -40,7 +40,7 @@ class ExporterPlainText(Exporter):
     def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
-    def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = ''):
+    def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = '') -> bool:
         super().open(temp_dir, name, author)
 
         extension = 'txt'
@@ -50,12 +50,14 @@ class ExporterPlainText(Exporter):
 
         self.prepare_filename(filename, extension)
 
+        return True
+
     def write_box(self, box_data: BoxData, page: Page, page_nr: int):
         if box_data.type == BOX_DATA_TYPE.TEXT:
-            self.text += box_data.text.toPlainText() + '\n\n'
+            self.text += box_data.text.toPlainText() + '\n'
 
     def new_page(self):
-        self.text += '\n'
+        self.text += '\n\n'
 
     def close(self):
         with open(self.filename, 'w') as file:
@@ -96,7 +98,7 @@ class ExporterEPUB(Exporter):
         self.current_chapter.content = ''
         self.css = ''
 
-    def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = ''):
+    def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = '') -> bool:
         super().open(temp_dir, name, author)
 
         extension = 'epub'

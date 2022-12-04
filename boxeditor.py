@@ -44,6 +44,13 @@ class BoxEditor(QtWidgets.QGraphicsView):
         # Enable so we get mouse move events
         self.setMouseTracking(True)
 
+    # def cleanup(self):
+    #     self.project = None
+    #     self.current_page = None
+    #     self.current_scale = 1.0
+    #     self.scene().cleanup()
+    #     self.setDisabled(True)
+
     def load_page(self, page: Page):
         self.scene().clear()
         self.scene().box_counter = 0
@@ -612,13 +619,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         self.state = BOX_EDITOR_SCENE_STATE.IDLE
-
-    # def cleanup(self):
-    #     self.clear()
-    #     self.project = None
-    #     self.current_page = None
-    #     self.image = None
-    #     self.box_counter = 0
 
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()

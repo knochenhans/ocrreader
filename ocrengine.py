@@ -69,6 +69,7 @@ class OCREngineTesseract(OCREngine):
         return blocks
 
     def recognize_text_color(self, image: QtGui.QPixmap) -> QtGui.QColor:
+        #TODO: This is much to slow to be useful, find a simpler approach
         image_cv = numpy.array(image.toImage().copy().bits()).reshape((image.height(), image.width(), 4))
 
         kernel = numpy.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])

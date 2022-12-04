@@ -78,7 +78,7 @@ class BoxEditor(QtWidgets.QGraphicsView):
         self.scene().current_box = None
 
         self.property_editor.box_widget.reset()
-        self.property_editor.box_widget
+        # self.property_editor.box_widget
 
         # self.scene().focus
 
@@ -595,6 +595,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # Setup connection to and from property editor
         self.selectionChanged.connect(self.update_property_editor)
         self.property_editor.box_widget.text_edit.editingFinished.connect(self.update_text)
+        self.property_editor.box_widget.tag_edit.editingFinished.connect(self.update_tag)
+        self.property_editor.box_widget.class_str_edit.editingFinished.connect(self.update_class_str)
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         self.state = BOX_EDITOR_SCENE_STATE.IDLE
@@ -651,6 +653,14 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         for item in self.selectedItems():
             item.properties.text = self.property_editor.box_widget.text_edit.document()
             self.update_property_editor()
+
+    def update_tag(self) -> None:
+        for item in self.selectedItems():
+            item.properties.tag = self.property_editor.box_widget.tag_edit.text()
+   
+    def update_class_str(self) -> None:
+        for item in self.selectedItems():
+            item.properties.class_str = self.property_editor.box_widget.class_str_edit.text()
 
     def update_language(self, text) -> None:
         for item in self.selectedItems():

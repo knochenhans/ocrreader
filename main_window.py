@@ -11,7 +11,7 @@ from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor import BoxEditor
-from exporter import ExporterPlainText, ExporterEPUB, ExporterManager
+from exporter import ExporterEPUB, ExporterManager, ExporterPlainText
 from ocr_engine import OCREngineManager, OCREngineTesseract
 from pages_icon_view import PagesIconView
 from project import Page, Project
@@ -70,8 +70,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.temp_dir = tempfile.TemporaryDirectory()
 
         self.exporter_manager = ExporterManager()
-        self.exporter_manager.add_exporter('EPUB', ExporterEPUB('epub', self.tr('EPUB file (*.epub)', 'filter_epub_export')))
-        self.exporter_manager.add_exporter('PlainText', ExporterPlainText('txt', self.tr('Text file (*.txt)', 'filter_plaintext_export')))
+        self.exporter_manager.add_exporter('EPUB', ExporterEPUB(self))
+        self.exporter_manager.add_exporter('PlainText', ExporterPlainText(self))
 
     def __del__(self):
         self.temp_dir.cleanup()
@@ -315,9 +315,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_project_directory = os.path.dirname(os.path.abspath(self.last_project_filename))
 
     def close_project(self) -> None:
-        # self.page_icon_view.cleanup()
-        # self.box_editor.cleanup()
-        # self.property_editor.cleanup()
         self.page_icon_view.close()
         self.box_editor.close()
         self.property_editor.close()
@@ -332,18 +329,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def run_exporter(self, id):
         exporter = self.exporter_manager.get_exporter(id)
 
-        filename = QtWidgets.QFileDialog.getSaveFileName(self, caption=self.tr('Export to', 'dialog_export_project'), filter=exporter.filter)[0]
+        if exporter.open(self.temp_dir, self.project.name):
+            for p, page in enumerate(self.project.pages):
+                exporter.new_page()
+                for box_datas in page.box_datas:
+                    exporter.write_box(box_datas, page, p)
 
-        exporter.open(filename, self.project.name)
+            exporter.close()
 
-        for page in self.project.pages:
-            exporter.new_page()
-            for box_datas in page.box_datas:
-                exporter.write_box(box_datas)
-
-        exporter.close()
-
-        self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
+            self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
+        else:
+            self.statusBar().showMessage(self.tr('Project export aborted', 'status_export_aborted'))
 
     def export_plaintext(self):
         self.run_exporter('PlainText')

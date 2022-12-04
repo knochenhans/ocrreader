@@ -13,16 +13,16 @@ class BOX_DATA_TYPE(Enum):
 
 
 class BoxData():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), words: list = None):
+    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), tag: str = '', class_str: str = '', words: list = None):
         self.order = order
         self.rect = rect
         self.type = type
         self.text = text
         self.language = language
         self.recognized = False
+        self.tag = tag
+        self.class_str = class_str
         self.ocr_result_block = ocr_result_block
-        # self.test = QtGui.QTextDocument('test')
-
         self.words = words
 
         if self.words == None:
@@ -35,6 +35,8 @@ class BoxData():
         file.writeString(self.text.toHtml())
         file.writeString(self.language.name)
         file.writeBool(self.recognized)
+        file.writeString(self.tag)
+        file.writeString(self.class_str)
 
         self.ocr_result_block.write(file)
 
@@ -54,6 +56,8 @@ class BoxData():
 
         self.language = Lang(file.readString())
         self.recognized = file.readBool()
+        self.tag = file.readString()
+        self.class_str = file.readString()
 
         self.ocr_result_block = OCRResultBlock()
         self.ocr_result_block.read(file)

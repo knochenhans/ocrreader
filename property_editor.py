@@ -93,32 +93,44 @@ class BoxPage(QtWidgets.QWidget):
     def __init__(self, parent, project: Project) -> None:
         super().__init__(parent)
 
-        # self.current_box_datas = None
-
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)
-        #self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
 
         self.language_combo = QtWidgets.QComboBox(self)
-        layout.addWidget(self.language_combo, 0, 0, QtCore.Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.language_combo, 0, 0, 1, 2, QtCore.Qt.AlignmentFlag.AlignTop)
 
         self.text_edit = TextEditor(self, project)
         self.text_edit.setAcceptRichText(True)
-        layout.addWidget(self.text_edit, 1, 0)
+        layout.addWidget(self.text_edit, 1, 0, 1, 2)
+
+        layout.addWidget(QtWidgets.QLabel(self.tr('Tag', 'tag')), 2, 0)
+
+        self.tag_edit = QtWidgets.QLineEdit(self)
+        self.tag_edit.setPlaceholderText('Will be wrapped in EPUB/HTML export, e.g. "p" or "h1"')
+        layout.addWidget(self.tag_edit, 2, 1)
+
+        layout.addWidget(QtWidgets.QLabel(self.tr('Class(es)', 'classes')), 3, 0)
+
+        self.class_str_edit = QtWidgets.QLineEdit(self)
+        self.class_str_edit.setPlaceholderText('For EPUB/HTML export, multiple can be separated by space, e.g. "small caption"')
+        layout.addWidget(self.class_str_edit, 3, 1)
+
         self.reset()
 
     def box_selected(self, box_datas: BoxData) -> None:
-        # if box_datas.ocr_result_block.paragraphs:
         self.setEnabled(True)
         self.current_box_datas = box_datas
         self.text_edit.setEnabled(True)
 
-        # if box_datas.ocr_result_block:
-        #     self.text_edit.setDocument(box_datas.ocr_result_block.get_text(True))
-
         # Clone document, as text_edit will take ownership
         self.text_edit.setDocument(box_datas.text.clone())
         self.text_edit.update()
+
+        self.tag_edit.setText(box_datas.tag)
+        self.tag_edit.update()
+
+        self.class_str_edit.setText(box_datas.class_str)
+        self.class_str_edit.update()
 
     def reset(self) -> None:
         # Block textChanged signal to keep widget from getting focus on reset

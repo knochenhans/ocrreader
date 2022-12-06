@@ -3,9 +3,10 @@ import re
 import tempfile
 
 from ebooklib import epub
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtGui, QtWidgets
 
-from box_data import BOX_DATA_TYPE, BoxData
+from box_editor.box_data import BOX_DATA_TYPE, BoxData
+from document_helper import DocumentHelper
 from project import Page
 
 

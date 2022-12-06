@@ -12,7 +12,7 @@ class HyphenRemoverTest(unittest.TestCase):
         text_correct = 'mit dem Amiga« fehlt nicht. Dort wird auf die Benutzung von damals schon erhältlichen Programmen wie Graphicraft, Deluxe-Paint, Textcraft und Musicraft eingegangen.\n\nAuch die »Grundlagen des CLI« kommen nicht zu kurz, ihnen ist ein eigener Teil des Buches gewidmet. In direktem Zusammenhang dazu stehen auch die Dateien und Dateiverzeichnisse und deren Gebrauch vom CLI aus. Außerdem werden sämtliche Kommandos des CLI/beschrieben, wobei der Text-Editor »ed« ein eigenes Kapitel füllt. Nachdem dieser Teil des Buches mit einigen wichtigen Tips für das CLI abgeschlossen wurde, folgen Kapitel über die Chips, Grafik, Sound, und die Schnittstellen des Amiga. Abschließend finden sich Hinweise über die Programmierung aller Sprachen, speziell wird dabei auf Basic eingegangen. Dazu sei aber bemerkt, daß die letzten Kapitel nicht mehr sehr umfangreich sind und mehr zur Abrundung des 450 Seiten starken Werks dienen. Das Buch kann allen Anfängern empfohlen werden, die einen Begleiter auf der Reise in die Welt des Amiga nicht missen wollen. (M.Marek/rb)'
 
         self.maxDiff = None
-        self.assertEqual(document_helper.removeHyphens().toPlainText(), text_correct)
+        self.assertEqual(document_helper.remove_hyphens().toPlainText(), text_correct)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,9 @@ from pdf2image import convert_from_path
 from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from box_editor import BoxEditor
+from box_editor.box_data import BOX_DATA_TYPE
+from box_editor.box_editor_scene import BoxEditorView
+from document_helper import DocumentHelper
 from exporter import ExporterEPUB, ExporterManager, ExporterPlainText
 from ocr_engine import OCREngineManager, OCREngineTesseract
 from pages_icon_view import PagesIconView
@@ -91,7 +93,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.property_editor.project_widget.default_paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
         self.property_editor.page_widget.paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
 
-        self.box_editor = BoxEditor(self, self.engine_manager, self.property_editor, self.project)
+        self.box_editor = BoxEditorView(self, self.engine_manager, self.property_editor, self.project)
         self.box_editor.property_editor = self.property_editor
         self.box_editor.setMinimumWidth(500)
 

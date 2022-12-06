@@ -106,7 +106,7 @@ class OCRResultBlock(HOCR_Data):
 
         if remove_hyphens:
             document_helper = DocumentHelper(document, self.language.pt1)
-            document = document_helper.removeHyphens()
+            document = document_helper.remove_hyphens()
 
         return document
 

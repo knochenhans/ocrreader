@@ -9,9 +9,6 @@ class DocumentHelper():
         self.document = document
         self.lang_code = lang_code
 
-    def removeHyphens(self) -> QtGui.QTextDocument:
-        dictionary = enchant.Dict(self.lang_code + '_' + self.lang_code.upper())
-
         paragraphs = []
 
         lines = []
@@ -44,6 +41,8 @@ class DocumentHelper():
         if lines:
             paragraphs.append(lines)
 
+    def remove_hyphens(self) -> QtGui.QTextDocument:
+        dictionary = enchant.Dict(self.lang_code + '_' + self.lang_code.upper())
         new_document = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(new_document)
         format = QtGui.QTextCharFormat()

@@ -6,7 +6,7 @@ from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from box_editor import BoxData
+from box_editor.box_editor_scene import BoxData
 from document_helper import DocumentHelper
 from ocr_engine import OCREngineManager
 from project import Project
@@ -152,7 +152,7 @@ class BoxPage(QtWidgets.QWidget):
 
     def removeHyphens(self) -> None:
         document_helper = DocumentHelper(self.text_edit.document(), Lang(self.language_combo.currentText()).pt1)
-        self.text_edit.setDocument(document_helper.removeHyphens())
+        self.text_edit.setDocument(document_helper.remove_hyphens())
         self.update()
 
 

@@ -11,7 +11,7 @@ from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box_data import BOX_DATA_TYPE
-from box_editor.box_editor_scene import BoxEditorView
+from box_editor.box_editor_view import BoxEditorView
 from document_helper import DocumentHelper
 from exporter import ExporterEPUB, ExporterManager, ExporterPlainText
 from ocr_engine import OCREngineManager, OCREngineTesseract

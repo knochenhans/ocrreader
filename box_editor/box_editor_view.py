@@ -1,10 +1,10 @@
 import cv2
 import numpy
-from box_editor_scene import HEADER_FOOTER_ITEM_TYPE, BoxEditorScene
+from ocr_engine import OCREngineManager
+from project import Project, Page
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from ocr_engine import OCREngineManager
-from project import Project
+from box_editor.box_editor_scene import HEADER_FOOTER_ITEM_TYPE, BoxEditorScene
 
 
 class BoxEditorView(QtWidgets.QGraphicsView):
@@ -25,13 +25,6 @@ class BoxEditorView(QtWidgets.QGraphicsView):
 
         # Enable so we get mouse move events
         self.setMouseTracking(True)
-
-    # def cleanup(self):
-    #     self.project = None
-    #     self.current_page = None
-    #     self.current_scale = 1.0
-    #     self.scene().cleanup()
-    #     self.setDisabled(True)
 
     def load_page(self, page: Page):
         self.scene().clear()
@@ -82,21 +75,6 @@ class BoxEditorView(QtWidgets.QGraphicsView):
             self.scale(self.current_scale, self.current_scale)
         else:
             super().wheelEvent(event)
-
-    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
-        '''Setup movement by mouse'''
-        if event.buttons() == QtCore.Qt.MiddleButton:
-            self.origin = event.pos()
-        elif event.buttons() == QtCore.Qt.RightButton:
-            self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
-
-        super().mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
-        if event.buttons() == QtCore.Qt.RightButton:
-            self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
-            self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
-        return super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         '''Handle movement by mouse'''

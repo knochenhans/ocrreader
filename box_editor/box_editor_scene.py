@@ -1,171 +1,16 @@
 from enum import Enum, auto
 
-import cv2
-import numpy
 from iso639 import Lang
-from ocr_engine import OCREngineManager
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText
 from odf.text import P
-from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from box_editor.box import Box
+from box_editor.box import BOX_DATA_TYPE, Box
 from box_editor.box_data import BoxData
-
-
-class BoxEditorView(QtWidgets.QGraphicsView):
-    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project) -> None:
-        super().__init__(parent)
-
-        self.project = project
-        self.property_editor = property_editor
-        self.current_page = None
-        self.custom_scene = BoxEditorScene(self, engine_manager, self.property_editor, self.project, None)
-        self.setScene(self.custom_scene)
-        self.origin = QtCore.QPoint()
-        self.current_scale = 1.0
-
-        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
-        self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
-        self.setDisabled(True)
-
-        # Enable so we get mouse move events
-        self.setMouseTracking(True)
-
-    # def cleanup(self):
-    #     self.project = None
-    #     self.current_page = None
-    #     self.current_scale = 1.0
-    #     self.scene().cleanup()
-    #     self.setDisabled(True)
-
-    def load_page(self, page: Page):
-        self.scene().clear()
-        self.scene().box_counter = 0
-        self.scene().header_item = None
-        self.scene().footer_item = None
-        # self.scene().current_box = None
-        self.scene().set_page_as_background(page)
-
-        self.setEnabled(True)
-        self.current_page = page
-        self.scene().current_page = self.current_page
-
-        for box_data in page.box_datas:
-            # Restore existing boxes for this page
-            self.scene().restore_box(box_data)
-
-        # Restore header and footer box
-        if self.project:
-            if self.project.header_y:
-                self.scene().add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.project.header_y)
-            if self.project.footer_y:
-                self.scene().add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.project.footer_y)
-
-        # TODO: Check if there’s a way to avoid checking current_box to find out if box is currently being resized
-        self.scene().current_box = None
-
-        self.property_editor.box_widget.reset()
-        # self.property_editor.box_widget
-
-        # self.scene().focus
-
-    def scene(self):
-        return self.custom_scene
-
-    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
-        '''Handle zooming and scrolling by mouse'''
-
-        if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
-            scaleFactor = 1.02
-            degrees = event.angleDelta().y()
-            if degrees > 0:
-                self.current_scale *= scaleFactor
-            else:
-                self.current_scale /= scaleFactor
-
-            self.resetTransform()
-            self.scale(self.current_scale, self.current_scale)
-        else:
-            super().wheelEvent(event)
-
-    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
-        '''Setup movement by mouse'''
-        if event.buttons() == QtCore.Qt.MiddleButton:
-            self.origin = event.pos()
-        elif event.buttons() == QtCore.Qt.RightButton:
-            self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
-
-        super().mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
-        if event.buttons() == QtCore.Qt.RightButton:
-            self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
-            self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
-        return super().mouseReleaseEvent(event)
-
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        '''Handle movement by mouse'''
-        oldPoint = self.mapToScene(self.origin)
-        newPoint = self.mapToScene(event.pos())
-        translation = newPoint - oldPoint
-
-        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
-        if event.buttons() == QtCore.Qt.RightButton:
-            pass
-        if event.buttons() == QtCore.Qt.MiddleButton:
-            self.translate(translation.x(), translation.y())
-
-        self.origin = event.pos()
-
-        super().mouseMoveEvent(event)
-
-    # def get_boxes(self, only_selected: bool = False) -> list:
-    #     boxes = []
-
-    #     for item in self.scene().items():
-    #         if isinstance(item, Box):
-    #             if only_selected:
-    #                 if item in self.scene().selectedItems():
-    #                     boxes.append(item)
-    #             else:
-    #                 boxes.append(item)
-
-    #     boxes.sort(key=lambda x: x.properties.order)
-    #     return boxes
-
-    def pixmap_to_cv2(self, pixmap: QtGui.QPixmap):
-        image = pixmap.toImage().copy()
-
-        # TODO: Works for now but a bit dirty, investigate further
-        return numpy.array(image.bits()).reshape((image.height(), image.width(), 4))
-
-    def analyze_layout(self) -> list:
-        # TODO: Check for actual page
-        new_boxes = []
-        if self.scene().image:
-            image = self.pixmap_to_cv2(self.scene().image)
-
-            # ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-            ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 100, 255, cv2.THRESH_BINARY_INV)
-
-            kernel = numpy.ones((5, 5), 'uint8')
-            margin_img = cv2.dilate(th1, kernel, iterations=5)
-
-            # cv2.imshow("test", margin_img)
-
-            (contours, _) = cv2.findContours(margin_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            for cnt in reversed(contours):
-                x, y, w, h = cv2.boundingRect(cnt)
-
-                box = QtCore.QRectF(x, y, w, h)
-
-                new_boxes.append(self.scene().add_box(box))
-                self.scene().current_box = None
-        return new_boxes
+from ocr_engine import OCREngineManager
+from project import Page, Project
 
 
 class HEADER_FOOTER_ITEM_TYPE(Enum):
@@ -193,23 +38,23 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
         self.setRect(rect)
 
         brush = QtGui.QBrush(QtGui.QColor(128, 0, 200, 150))
-        brush.setStyle(QtCore.Qt.BDiagPattern)
+        brush.setStyle(QtCore.Qt.BrushStyle.BDiagPattern)
 
-        self.setPen(QtCore.Qt.NoPen)
+        self.setPen(QtCore.Qt.PenStyle.NoPen)
         self.setBrush(brush)
 
         pen = QtGui.QPen(QtGui.QColor(128, 0, 200, 150))
         pen.setWidth(1)
-        pen.setStyle(QtCore.Qt.SolidLine)
+        pen.setStyle(QtCore.Qt.PenStyle.SolidLine)
         pen.setCosmetic(True)
 
         self.title = QtWidgets.QGraphicsSimpleTextItem(self)
-        self.title.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+        self.title.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
         self.title.setPen(pen)
         self.title.setText(title)
 
         self.line = QtWidgets.QGraphicsLineItem(self)
-        self.line.setPen(QtGui.QPen(QtGui.QColor(128, 0, 200, 200), 3, QtCore.Qt.SolidLine))
+        self.line.setPen(QtGui.QPen(QtGui.QColor(128, 0, 200, 200), 3, QtCore.Qt.PenStyle.SolidLine))
         self.line.setPos(0, y)
         self.line.setLine(0, 0, self.rect().width(), 0)
 
@@ -233,8 +78,9 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
 
 
 class BOX_EDITOR_SCENE_STATE(Enum):
-    IDLE = auto()
+    SELECT = auto()
     DRAW_BOX = auto()
+    HAND = auto()
     PLACE_HEADER = auto()
     PLACE_FOOTER = auto()
 
@@ -262,7 +108,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.property_editor.box_widget.class_str_edit.editingFinished.connect(self.update_class_str)
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
-        self.state = BOX_EDITOR_SCENE_STATE.IDLE
+        # Current editor state
+        self.editor_state = BOX_EDITOR_SCENE_STATE.SELECT
+
+        # Current box type for drawing boxes
+        self.current_box_type = BOX_DATA_TYPE.IMAGE
 
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
@@ -305,6 +155,23 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 item.setFocus()
 
         return True
+
+    def set_editor_state(self, new_state: BOX_EDITOR_SCENE_STATE) -> None:
+        cursor = QtCore.Qt.CursorShape.ArrowCursor
+
+        match new_state:
+            case BOX_EDITOR_SCENE_STATE.SELECT:
+                cursor = QtCore.Qt.CursorShape.ArrowCursor
+            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                cursor = QtCore.Qt.CursorShape.CrossCursor
+            case BOX_EDITOR_SCENE_STATE.HAND:
+                cursor = QtCore.Qt.CursorShape.OpenHandCursor
+            case BOX_EDITOR_SCENE_STATE.PLACE_HEADER | BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
+                cursor = QtCore.Qt.CursorShape.SplitVCursor
+
+        QtWidgets.QApplication.setOverrideCursor(cursor)
+        # self.views()[0].setCursor(cursor)
+        self.editor_state = new_state
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:
@@ -510,58 +377,71 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Handle adding new box by mouse'''
-        if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
-            if not self.itemAt(event.scenePos(), QtGui.QTransform()):
-                if event.buttons() == QtCore.Qt.LeftButton:
-                    if not self.current_box:
-                        rect = QtCore.QRectF()
-                        rect.setTopLeft(event.scenePos())
-                        rect.setBottomRight(event.scenePos())
 
-                        self.add_box(rect)
+        match self.editor_state:
+            case BOX_EDITOR_SCENE_STATE.SELECT:
+                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                    self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
+                elif event.buttons() == QtCore.Qt.MouseButton.MiddleButton:
+                    self.views()[0].origin = event.pos()
+            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                if not self.itemAt(event.scenePos(), QtGui.QTransform()):
+                    if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                        if not self.current_box:
+                            rect = QtCore.QRectF()
+                            rect.setTopLeft(event.scenePos())
+                            rect.setBottomRight(event.scenePos())
 
-                        self.state = BOX_EDITOR_SCENE_STATE.DRAW_BOX
-        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
-            if self.header_item:
-                if self.project:
-                    self.project.header_y = self.header_item.rect().bottom()
-            self.state = BOX_EDITOR_SCENE_STATE.IDLE
-        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
-            if self.footer_item:
-                if self.project:
-                    self.project.footer_y = self.footer_item.rect().top()
-            self.state = BOX_EDITOR_SCENE_STATE.IDLE
+                            self.add_box(rect)
+            case BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
+                if self.header_item:
+                    if self.project:
+                        self.project.header_y = self.header_item.rect().bottom()
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+            case BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
+                if self.footer_item:
+                    if self.project:
+                        self.project.footer_y = self.footer_item.rect().top()
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        if self.state == BOX_EDITOR_SCENE_STATE.DRAW_BOX:
-            if event.buttons() == QtCore.Qt.LeftButton:
-                if self.current_box:
-                    rect = self.current_box.rect()
-                    rect.setBottomRight(event.scenePos())
-                    self.current_box.setRect(rect)
-        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
-            if self.header_item:
-                self.header_item.update_bottom_position(event.scenePos().y())
-        elif self.state == BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
-            if self.footer_item:
-                self.footer_item.update_top_position(event.scenePos().y())
+        match self.editor_state:
+            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                    if self.current_box:
+                        rect = self.current_box.rect()
+                        rect.setBottomRight(event.scenePos())
+                        self.current_box.setRect(rect)
+            case BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
+                if self.header_item:
+                    self.header_item.update_bottom_position(event.scenePos().y())
+            case BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
+                if self.footer_item:
+                    self.footer_item.update_top_position(event.scenePos().y())
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         '''Commit changes after drawing box or remove if too small'''
-        if self.state == BOX_EDITOR_SCENE_STATE.DRAW_BOX:
-            if self.current_box:
-                corner = self.current_box.rect().topLeft()
-                if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
-                    self.current_box.updateProperties()
-                    self.current_box.setSelected(True)
-                    self.current_box.setFocus()
-                else:
-                    self.remove_box(self.current_box)
-            self.current_box = None
-        self.state = BOX_EDITOR_SCENE_STATE.IDLE
+        # if event.buttons() == QtCore.Qt.RightButton:
+        #     self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+        #     self.views()[0].setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
+
+        match self.editor_state:
+            case BOX_EDITOR_SCENE_STATE.SELECT:
+                self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                if self.current_box:
+                    corner = self.current_box.rect().topLeft()
+                    if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
+                        self.current_box.updateProperties()
+                        self.current_box.setSelected(True)
+                        self.current_box.setFocus()
+                    else:
+                        self.remove_box(self.current_box)
+                self.current_box = None
+        self.editor_state = BOX_EDITOR_SCENE_STATE.SELECT
         super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
@@ -571,49 +451,77 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # Sort by order number
         boxes.sort(key=lambda x: x.properties.order)
 
-        if self.state == BOX_EDITOR_SCENE_STATE.IDLE:
-            if event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier:
-                match event.key():
-                    case QtCore.Qt.Key_A:
-                        for box in self.items():
-                            box.setSelected(True)
-                    case _:
-                        super().keyPressEvent(event)
+        if self.editor_state == BOX_EDITOR_SCENE_STATE.SELECT:
+            match event.key():
+                case QtCore.Qt.Key.Key_F1:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+                case QtCore.Qt.Key.Key_F2:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                case QtCore.Qt.Key.Key_F3:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.HAND)
+                case QtCore.Qt.Key.Key_F4:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
+                case QtCore.Qt.Key.Key_F5:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
+                case QtCore.Qt.Key.Key_Shift:
+                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
 
-            if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
-                match event.key():
-                    case QtCore.Qt.Key_A:
-                        for box in boxes:
-                            box.auto_align()
-                    case QtCore.Qt.Key_I:
-                        for box in boxes:
-                            box.set_type_to_image()
-                    case QtCore.Qt.Key_T:
-                        for box in boxes:
-                            box.set_type_to_text()
-                    case QtCore.Qt.Key_R:
-                        for box in boxes:
-                            box.recognize_text()
-                    case QtCore.Qt.Key_Delete:
-                        for box in boxes:
-                            self.remove_box(box)
-                    case QtCore.Qt.Key_H:
-                        self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.get_mouse_position().y())
-                        self.state = BOX_EDITOR_SCENE_STATE.PLACE_HEADER
-                    case QtCore.Qt.Key_F:
-                        self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
-                        self.state = BOX_EDITOR_SCENE_STATE.PLACE_FOOTER
-                    case QtCore.Qt.Key_D:
-                        for box in boxes:
-                            self.toggle_export_enabled(box)
-                    case _:
-                        super().keyPressEvent(event)
+            match event.modifiers():
+                case QtCore.Qt.KeyboardModifier.NoModifier:
+                    match event.key():
+                        case QtCore.Qt.Key.Key_Delete:
+                            for box in boxes:
+                                self.remove_box(box)
+                        case QtCore.Qt.Key.Key_I:
+                            self.current_box_type = BOX_DATA_TYPE.IMAGE
+                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                        case QtCore.Qt.Key.Key_T:
+                            self.current_box_type = BOX_DATA_TYPE.TEXT
+                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                        case QtCore.Qt.Key.Key_H:
+                            self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.get_mouse_position().y())
+                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
+                        case QtCore.Qt.Key.Key_F:
+                            self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
+                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
+                case QtCore.Qt.KeyboardModifier.ControlModifier:
+                    match event.key():
+                        case QtCore.Qt.Key.Key_A:
+                            for box in self.items():
+                                box.setSelected(True)
+                        # case _:
+                        #     super().keyPressEvent(event)
+                case QtCore.Qt.KeyboardModifier.AltModifier:
+                    match event.key():
+                        case QtCore.Qt.Key.Key_A:
+                            for box in boxes:
+                                box.auto_align()
+                        case QtCore.Qt.Key.Key_I:
+                            for box in boxes:
+                                box.set_type_to_image()
+                        case QtCore.Qt.Key.Key_T:
+                            for box in boxes:
+                                box.set_type_to_text()
+                        case QtCore.Qt.Key.Key_R:
+                            for box in boxes:
+                                box.recognize_text()
+                        case QtCore.Qt.Key.Key_D:
+                            for box in boxes:
+                                self.toggle_export_enabled(box)
+                        # case _:
+                        #     super().keyPressEvent(event)
         else:
             # TODO: enable canceling actions
             if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
                 match event.key():
-                    case QtCore.Qt.Key_Escape:
-                        self.state = BOX_EDITOR_SCENE_STATE.IDLE
+                    case QtCore.Qt.Key.Key_Escape:
+                        self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+
+    def keyReleaseEvent(self, event: QtGui.QKeyEvent) -> None:
+        match event.key():
+            case QtCore.Qt.Key.Key_Shift:
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+        super().keyReleaseEvent(event)
 
     def set_page_as_background(self, page: Page):
         self.image = QtGui.QPixmap(page.image_path)

@@ -27,21 +27,21 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.engine_manager = engine_manager
         self.custom_scene = scene
 
-        self.moving = False
+        self.move_edges = False
 
         # Setup order number for painting
         self.number_widget = QtWidgets.QGraphicsSimpleTextItem(self)
-        self.number_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+        self.number_widget.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
 
         # Setup recognition checkmark symbol for painting
-        checkmark = QtGui.QPixmap('resources/icons/check-line.png').scaledToWidth(16, QtCore.Qt.SmoothTransformation)
+        checkmark = QtGui.QPixmap('resources/icons/check-line.png').scaledToWidth(16, QtCore.Qt.TransformationMode.SmoothTransformation)
         self.recognized_widget = QtWidgets.QGraphicsPixmapItem(checkmark, self)
-        self.recognized_widget.setFlag(QtWidgets.QGraphicsItem.ItemIgnoresTransformations)
+        self.recognized_widget.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
         self.recognized_widget.hide()
 
         self.setAcceptHoverEvents(True)
 
-        self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable | QtWidgets.QGraphicsItem.ItemIsMovable | QtWidgets.QGraphicsItem.ItemIsFocusable)
+        self.setFlags(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable)
 
         self.properties = BoxData()
         self.properties.language = self.scene().project.default_language
@@ -54,13 +54,13 @@ class Box(QtWidgets.QGraphicsRectItem):
         # Text box
 
         brush_text = QtGui.QBrush(QtGui.QColor(94, 156, 235, 150))
-        brush_text.setStyle(QtCore.Qt.SolidPattern)
+        brush_text.setStyle(QtCore.Qt.BrushStyle.SolidPattern)
 
         brush_text_selected = brush_text
 
         pen_text = QtGui.QPen(QtGui.QColor(94, 156, 235, 150))
         pen_text.setWidth(2)
-        pen_text.setStyle(QtCore.Qt.SolidLine)
+        pen_text.setStyle(QtCore.Qt.PenStyle.SolidLine)
         pen_text.setCosmetic(False)
 
         pen_text_selected = pen_text
@@ -101,44 +101,6 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def scene(self):
         return self.custom_scene
-
-    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        '''Handle scaling via mouse'''
-        if self.moving:
-            self.scene().clearSelection()
-            self.setSelected(True)
-            self.prepareGeometryChange()
-            pos = event.pos().toPoint()
-
-            rect = self.rect()
-
-            if self.left:
-                rect.setLeft(pos.x())
-            if self.right:
-                rect.setRight(pos.x())
-            if self.top:
-                rect.setTop(pos.y())
-            if self.bottom:
-                rect.setBottom(pos.y())
-
-            self.setRect(rect.normalized())
-            self.update()
-            self.updateProperties()
-        else:
-            super().mouseMoveEvent(event)
-
-    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        if event.buttons() == QtCore.Qt.LeftButton:
-            self.origin_rect = self.rect()
-            if self.left or self.right or self.top or self.bottom:
-                self.moving = True
-            else:
-                super().mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        self.moving = False
-        self.updateProperties()
-        super().mouseReleaseEvent(event)
 
     def updateProperties(self) -> None:
         '''Update properties with current box position'''
@@ -188,7 +150,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         # Update word confidence visualisation
         if self.properties.words:
-            painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+            painter.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
 
             for word in self.properties.words:
                 if word.confidence < 90:
@@ -202,7 +164,7 @@ class Box(QtWidgets.QGraphicsRectItem):
                 if len(paragraphs) > 1:
                     for p, paragraph in enumerate(self.properties.ocr_result_block.paragraphs):
                         if p > 0:
-                            painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.SolidLine))
+                            painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.PenStyle.SolidLine))
                             rect = paragraph.bbox.translated(self.rect().topLeft().toPoint())
                             painter.drawLine(rect.topLeft(), rect.topRight())
 
@@ -213,7 +175,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.bottom = False
         self.left = False
 
-        cursor = QtGui.QCursor(QtGui.Qt.ArrowCursor)
+        cursor = QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor)
         if math.isclose(event.pos().x(), self.rect().x(), rel_tol=0.01):
             self.left = True
         if math.isclose(event.pos().x(), self.rect().x() + self.rect().width(), rel_tol=0.01):
@@ -224,18 +186,65 @@ class Box(QtWidgets.QGraphicsRectItem):
             self.bottom = True
 
         if self.top or self.bottom:
-            cursor = QtGui.QCursor(QtGui.Qt.SizeVerCursor)
+            cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeVerCursor)
         if self.left or self.right:
-            cursor = QtGui.QCursor(QtGui.Qt.SizeHorCursor)
+            cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeHorCursor)
 
         if self.top and self.right or self.bottom and self.left:
-            cursor = QtGui.QCursor(QtGui.Qt.SizeBDiagCursor)
+            cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeBDiagCursor)
         if self.top and self.left or self.bottom and self.right:
-            cursor = QtGui.QCursor(QtGui.Qt.SizeFDiagCursor)
+            cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeFDiagCursor)
 
-        self.setCursor(cursor)
+        QtWidgets.QApplication.setOverrideCursor(cursor)
 
         super().hoverMoveEvent(event)
+
+    def hoverLeaveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
+        QtWidgets.QApplication.setOverrideCursor(QtGui.Qt.CursorShape.ArrowCursor)
+        super().hoverLeaveEvent(event)
+
+    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        '''Handle scaling via mouse'''
+        if self.move_edges:
+            self.scene().clearSelection()
+            self.setSelected(True)
+            self.prepareGeometryChange()
+            pos = event.pos().toPoint()
+
+            rect = self.rect()
+
+            if self.left:
+                rect.setLeft(pos.x())
+            if self.right:
+                rect.setRight(pos.x())
+            if self.top:
+                rect.setTop(pos.y())
+            if self.bottom:
+                rect.setBottom(pos.y())
+
+            self.setRect(rect.normalized())
+            self.update()
+            self.updateProperties()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        match event.modifiers():
+            case QtCore.Qt.KeyboardModifier.NoModifier:
+                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                    self.origin_rect = self.rect()
+                    if self.left or self.right or self.top or self.bottom:
+                        self.move_edges = True
+                    else:
+                        super().mousePressEvent(event)
+            case QtCore.Qt.KeyboardModifier.ControlModifier:
+                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                    event.ignore()
+
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        self.move_edges = False
+        self.updateProperties()
+        super().mouseReleaseEvent(event)
 
     def contextMenuEvent(self, event: QtWidgets.QGraphicsSceneContextMenuEvent) -> None:
         self.menu = QtWidgets.QMenu()
@@ -362,5 +371,4 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def set_type_to_image(self) -> None:
         self.properties.type = BOX_DATA_TYPE.IMAGE
-        self.auto_align()
         self.update()

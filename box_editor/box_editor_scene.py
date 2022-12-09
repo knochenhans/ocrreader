@@ -1,16 +1,16 @@
 from enum import Enum, auto
 
 from iso639 import Lang
+from ocr_engine import OCREngineManager
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText
 from odf.text import P
+from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box import BOX_DATA_TYPE, Box
 from box_editor.box_data import BoxData
-from ocr_engine import OCREngineManager
-from project import Page, Project
 
 
 class HEADER_FOOTER_ITEM_TYPE(Enum):
@@ -83,6 +83,7 @@ class BOX_EDITOR_SCENE_STATE(Enum):
     HAND = auto()
     PLACE_HEADER = auto()
     PLACE_FOOTER = auto()
+    RENUMBER = auto()
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
@@ -109,10 +110,14 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         # Current editor state
-        self.editor_state = BOX_EDITOR_SCENE_STATE.SELECT
+        self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
 
         # Current box type for drawing boxes
         self.current_box_type = BOX_DATA_TYPE.IMAGE
+
+        # Variables for box renumbering
+        self.renumber_line = None
+        self.set_renumber_first_box(None)
 
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
@@ -168,18 +173,33 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 cursor = QtCore.Qt.CursorShape.OpenHandCursor
             case BOX_EDITOR_SCENE_STATE.PLACE_HEADER | BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
                 cursor = QtCore.Qt.CursorShape.SplitVCursor
+            case BOX_EDITOR_SCENE_STATE.RENUMBER:
+                cursor = QtCore.Qt.CursorShape.PointingHandCursor
 
-        QtWidgets.QApplication.setOverrideCursor(cursor)
-        # self.views()[0].setCursor(cursor)
+                items = self.selectedItems()
+
+                if len(items):
+                    self.set_renumber_first_box(items[0])
+
+                for item in self.items():
+                    item.setAcceptHoverEvents(False)
+
+        if cursor:
+            QtWidgets.QApplication.setOverrideCursor(cursor)
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
+
         self.editor_state = new_state
 
     def update_text(self) -> None:
         if len(self.selectedItems()) > 1:
-            button = QtWidgets.QMessageBox.question(self.parent(), self.tr('Edit text of multiple boxes?', 'dialog_multiple_boxes_edit_title'), self.tr(
-                'Multiple boxes are currently selected, do you want to set the current text for all selected box?', 'dialog_multiple_boxes_edit'))
+            parent = self.parent()
+            if isinstance(parent, QtWidgets.QWidget):
+                button = QtWidgets.QMessageBox.question(parent, self.tr('Edit text of multiple boxes?', 'dialog_multiple_boxes_edit_title'), self.tr(
+                    'Multiple boxes are currently selected, do you want to set the current text for all selected box?', 'dialog_multiple_boxes_edit'))
 
-            if button == QtWidgets.QMessageBox.No:
-                return
+                if button == QtWidgets.QMessageBox.No:
+                    return
         for item in self.selectedItems():
             item.properties.text = self.property_editor.box_widget.text_edit.document()
             self.update_property_editor()
@@ -375,17 +395,48 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             if self.project:
                 self.project.footer_y = y
 
+    def set_renumber_first_box(self, item: Box | None):
+        self.renumber_first_box = item
+
+        if item:
+            if not self.renumber_line:
+                self.renumber_line = QtWidgets.QGraphicsLineItem()
+                
+                pen = QtGui.QPen(QtGui.QColor(227, 35, 35, 255))
+                pen.setWidth(3)
+                pen.setStyle(QtCore.Qt.PenStyle.DotLine)
+                self.renumber_line.setPen(pen)
+
+                self.addItem(self.renumber_line)
+        else:
+            if self.renumber_line:
+                self.removeItem(self.renumber_line)
+                self.renumber_line = None
+
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        from box_editor.box_editor_view import BoxEditorView
         '''Handle adding new box by mouse'''
+        #box_clicked = self.itemAt(event.scenePos(), QtGui.QTransform())
+
+        box_clicked = None
+
+        # itemAt would return the QGraphicsLineItem object
+        for item in self.items():
+            if isinstance(item, Box):
+                if item.contains(event.scenePos()):
+                    box_clicked = item
 
         match self.editor_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
+                    if not box_clicked:
+                        self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
                 elif event.buttons() == QtCore.Qt.MouseButton.MiddleButton:
-                    self.views()[0].origin = event.pos()
+                    view = self.views()[0]
+                    if isinstance(view, BoxEditorView):
+                        view.origin = event.pos().toPoint()
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
-                if not self.itemAt(event.scenePos(), QtGui.QTransform()):
+                if not box_clicked:
                     if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
                         if not self.current_box:
                             rect = QtCore.QRectF()
@@ -403,6 +454,37 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     if self.project:
                         self.project.footer_y = self.footer_item.rect().top()
                 self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+            case BOX_EDITOR_SCENE_STATE.RENUMBER:
+                if self.renumber_first_box:
+                    if isinstance(self.renumber_first_box, Box) and isinstance(box_clicked, Box):
+                        # The second selected box will get the next higher order number
+                        next_number = self.renumber_first_box.properties.order + 1
+
+                        # Find existing box with new number and swap order numbers
+                        for item in self.items():
+                            if item.properties.order == next_number:
+                                if not (item == self.renumber_first_box or item == box_clicked):
+                                    swap = item.properties.order
+                                    item.properties.order = box_clicked.properties.order
+                                    box_clicked.properties.order = swap
+                                    break
+
+                        # self.renumber_first_box.properties.order = item_clicked.properties.order
+                        # item_clicked.properties.order = next_number
+
+                        self.renumber_first_box.update()
+                        self.clearSelection()
+                        box_clicked.setSelected(True)
+                        box_clicked.update()
+
+                        self.set_renumber_first_box(None)
+
+                        self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+                        self.update()
+                else:
+                    if isinstance(box_clicked, Box):
+                        self.set_renumber_first_box(box_clicked)
+                return
 
         super().mousePressEvent(event)
 
@@ -420,6 +502,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
                 if self.footer_item:
                     self.footer_item.update_top_position(event.scenePos().y())
+            case BOX_EDITOR_SCENE_STATE.RENUMBER:
+                if self.renumber_line and self.renumber_first_box:
+                    x = self.renumber_first_box.rect().x() + self.renumber_first_box.rect().width() / 2
+                    y = self.renumber_first_box.rect().y() + self.renumber_first_box.rect().height() / 2
+                    self.renumber_line.setLine(x, y, event.scenePos().x(), event.scenePos().y())
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
@@ -441,7 +528,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     else:
                         self.remove_box(self.current_box)
                 self.current_box = None
-        self.editor_state = BOX_EDITOR_SCENE_STATE.SELECT
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
         super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
@@ -451,71 +538,74 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # Sort by order number
         boxes.sort(key=lambda x: x.properties.order)
 
-        if self.editor_state == BOX_EDITOR_SCENE_STATE.SELECT:
-            match event.key():
-                case QtCore.Qt.Key.Key_F1:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
-                case QtCore.Qt.Key.Key_F2:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
-                case QtCore.Qt.Key.Key_F3:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.HAND)
-                case QtCore.Qt.Key.Key_F4:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
-                case QtCore.Qt.Key.Key_F5:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
-                case QtCore.Qt.Key.Key_Shift:
-                    self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
-
-            match event.modifiers():
-                case QtCore.Qt.KeyboardModifier.NoModifier:
+        match self.editor_state:
+            case BOX_EDITOR_SCENE_STATE.SELECT:
+                match event.modifiers():
+                    case QtCore.Qt.KeyboardModifier.NoModifier:
+                        match event.key():
+                            case QtCore.Qt.Key.Key_F1:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+                            case QtCore.Qt.Key.Key_F2:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                            case QtCore.Qt.Key.Key_F3:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.HAND)
+                            case QtCore.Qt.Key.Key_F4:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
+                            case QtCore.Qt.Key.Key_F5:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
+                            case QtCore.Qt.Key.Key_Shift:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                            case QtCore.Qt.Key.Key_F6:
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.RENUMBER)
+                            case QtCore.Qt.Key.Key_Delete:
+                                for box in boxes:
+                                    self.remove_box(box)
+                            case QtCore.Qt.Key.Key_I:
+                                self.current_box_type = BOX_DATA_TYPE.IMAGE
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                            case QtCore.Qt.Key.Key_T:
+                                self.current_box_type = BOX_DATA_TYPE.TEXT
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
+                            case QtCore.Qt.Key.Key_H:
+                                self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.get_mouse_position().y())
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
+                            case QtCore.Qt.Key.Key_F:
+                                self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
+                    case QtCore.Qt.KeyboardModifier.ControlModifier:
+                        match event.key():
+                            case QtCore.Qt.Key.Key_A:
+                                for box in self.items():
+                                    box.setSelected(True)
+                            # case _:
+                            #     super().keyPressEvent(event)
+                    case QtCore.Qt.KeyboardModifier.AltModifier:
+                        match event.key():
+                            case QtCore.Qt.Key.Key_A:
+                                for box in boxes:
+                                    box.auto_align()
+                            case QtCore.Qt.Key.Key_I:
+                                for box in boxes:
+                                    box.set_type_to_image()
+                            case QtCore.Qt.Key.Key_T:
+                                for box in boxes:
+                                    box.set_type_to_text()
+                            case QtCore.Qt.Key.Key_R:
+                                for box in boxes:
+                                    box.recognize_text()
+                            case QtCore.Qt.Key.Key_D:
+                                for box in boxes:
+                                    self.toggle_export_enabled(box)
+                            # case _:
+                            #     super().keyPressEvent(event)
+            case BOX_EDITOR_SCENE_STATE.RENUMBER:
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.RENUMBER)
+            case _:
+                # TODO: enable canceling actions
+                if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
                     match event.key():
-                        case QtCore.Qt.Key.Key_Delete:
-                            for box in boxes:
-                                self.remove_box(box)
-                        case QtCore.Qt.Key.Key_I:
-                            self.current_box_type = BOX_DATA_TYPE.IMAGE
-                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
-                        case QtCore.Qt.Key.Key_T:
-                            self.current_box_type = BOX_DATA_TYPE.TEXT
-                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.DRAW_BOX)
-                        case QtCore.Qt.Key.Key_H:
-                            self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.HEADER, self.get_mouse_position().y())
-                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_HEADER)
-                        case QtCore.Qt.Key.Key_F:
-                            self.add_header_footer(HEADER_FOOTER_ITEM_TYPE.FOOTER, self.get_mouse_position().y())
-                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_FOOTER)
-                case QtCore.Qt.KeyboardModifier.ControlModifier:
-                    match event.key():
-                        case QtCore.Qt.Key.Key_A:
-                            for box in self.items():
-                                box.setSelected(True)
-                        # case _:
-                        #     super().keyPressEvent(event)
-                case QtCore.Qt.KeyboardModifier.AltModifier:
-                    match event.key():
-                        case QtCore.Qt.Key.Key_A:
-                            for box in boxes:
-                                box.auto_align()
-                        case QtCore.Qt.Key.Key_I:
-                            for box in boxes:
-                                box.set_type_to_image()
-                        case QtCore.Qt.Key.Key_T:
-                            for box in boxes:
-                                box.set_type_to_text()
-                        case QtCore.Qt.Key.Key_R:
-                            for box in boxes:
-                                box.recognize_text()
-                        case QtCore.Qt.Key.Key_D:
-                            for box in boxes:
-                                self.toggle_export_enabled(box)
-                        # case _:
-                        #     super().keyPressEvent(event)
-        else:
-            # TODO: enable canceling actions
-            if event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier:
-                match event.key():
-                    case QtCore.Qt.Key.Key_Escape:
-                        self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+                        case QtCore.Qt.Key.Key_Escape:
+                            self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
 
     def keyReleaseEvent(self, event: QtGui.QKeyEvent) -> None:
         match event.key():

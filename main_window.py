@@ -75,6 +75,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exporter_manager.add_exporter('EPUB', ExporterEPUB(self))
         self.exporter_manager.add_exporter('PlainText', ExporterPlainText(self))
 
+        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor))
+
     def __del__(self):
         self.temp_dir.cleanup()
 

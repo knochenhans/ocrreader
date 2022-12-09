@@ -99,6 +99,11 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.color_disabled = BoxColor(brush_disabled, pen_disabled, brush_disabled_selected, pen_disabled_selected)
 
+        self.top_touched = False
+        self.right_touched = False
+        self.bottom_touched = False
+        self.left_touched = False
+
     def scene(self):
         return self.custom_scene
 
@@ -170,37 +175,42 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def hoverMoveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
         '''Show size grips at the box' margin'''
-        self.top = False
-        self.right = False
-        self.bottom = False
-        self.left = False
+        self.top_touched = False
+        self.right_touched = False
+        self.bottom_touched = False
+        self.left_touched = False
 
-        cursor = QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor)
+        # cursor = QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor)
+        cursor = None
+        
         if math.isclose(event.pos().x(), self.rect().x(), rel_tol=0.01):
-            self.left = True
+            self.left_touched = True
         if math.isclose(event.pos().x(), self.rect().x() + self.rect().width(), rel_tol=0.01):
-            self.right = True
+            self.right_touched = True
         if math.isclose(event.pos().y(), self.rect().y(), rel_tol=0.01):
-            self.top = True
+            self.top_touched = True
         if math.isclose(event.pos().y(), self.rect().y() + self.rect().height(), rel_tol=0.01):
-            self.bottom = True
+            self.bottom_touched = True
 
-        if self.top or self.bottom:
+        if self.top_touched or self.bottom_touched:
             cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeVerCursor)
-        if self.left or self.right:
+        if self.left_touched or self.right_touched:
             cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeHorCursor)
 
-        if self.top and self.right or self.bottom and self.left:
+        if self.top_touched and self.right_touched or self.bottom_touched and self.left_touched:
             cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeBDiagCursor)
-        if self.top and self.left or self.bottom and self.right:
+        if self.top_touched and self.left_touched or self.bottom_touched and self.right_touched:
             cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeFDiagCursor)
 
-        QtWidgets.QApplication.setOverrideCursor(cursor)
+        if cursor:
+            QtWidgets.QApplication.setOverrideCursor(cursor)
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
 
         super().hoverMoveEvent(event)
 
     def hoverLeaveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
-        QtWidgets.QApplication.setOverrideCursor(QtGui.Qt.CursorShape.ArrowCursor)
+        QtWidgets.QApplication.changeOverrideCursor(QtGui.Qt.CursorShape.ArrowCursor)
         super().hoverLeaveEvent(event)
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
@@ -213,13 +223,13 @@ class Box(QtWidgets.QGraphicsRectItem):
 
             rect = self.rect()
 
-            if self.left:
+            if self.left_touched:
                 rect.setLeft(pos.x())
-            if self.right:
+            if self.right_touched:
                 rect.setRight(pos.x())
-            if self.top:
+            if self.top_touched:
                 rect.setTop(pos.y())
-            if self.bottom:
+            if self.bottom_touched:
                 rect.setBottom(pos.y())
 
             self.setRect(rect.normalized())
@@ -233,7 +243,7 @@ class Box(QtWidgets.QGraphicsRectItem):
             case QtCore.Qt.KeyboardModifier.NoModifier:
                 if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
                     self.origin_rect = self.rect()
-                    if self.left or self.right or self.top or self.bottom:
+                    if self.left_touched or self.right_touched or self.top_touched or self.bottom_touched:
                         self.move_edges = True
                     else:
                         super().mousePressEvent(event)

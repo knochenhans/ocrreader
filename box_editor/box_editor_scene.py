@@ -429,7 +429,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         match self.editor_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    if not box_clicked:
+                    # Draw rubber band when no box is selected or Ctrl is being pressed
+                    if not box_clicked or (box_clicked and event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier):
                         self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
                 elif event.buttons() == QtCore.Qt.MouseButton.MiddleButton:
                     view = self.views()[0]
@@ -437,6 +438,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         view.origin = event.pos().toPoint()
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 if not box_clicked:
+                    # Start drawing a new box
                     if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
                         if not self.current_box:
                             rect = QtCore.QRectF()

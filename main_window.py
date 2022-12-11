@@ -14,7 +14,7 @@ from box_editor.box_data import BOX_DATA_TYPE
 from box_editor.box_editor_view import BoxEditorView
 from document_helper import DocumentHelper
 from exporter import ExporterEPUB, ExporterManager, ExporterPlainText
-from ocr_engine import OCREngineManager, OCREngineTesseract
+from ocr_engine import OCREngineManager, OCREnginePytesseract, OCREngineTesserocr
 from pages_icon_view import PagesIconView
 from project import Page, Project
 from property_editor import PropertyEditor

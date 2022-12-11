@@ -622,3 +622,28 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Setup background image for page'''
         if self.image:
             painter.drawPixmap(self.sceneRect(), self.image, QtCore.QRectF(self.image.rect()))
+
+    def analyse_layout(self) -> None:
+        from_header = 0.0
+        to_footer = 0.0
+        
+        if self.header_item:
+            from_header = self.header_item.rect().bottom()
+        if self.footer_item:
+            to_footer = self.footer_item.rect().top()
+
+        ocr_result_blocks = self.engine_manager.get_current_engine().analyse_layout(self.image, int(from_header), int(to_footer))
+
+        if ocr_result_blocks:
+            added_boxes = 0
+        
+            for ocr_result_block in ocr_result_blocks:
+                new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox.topLeft(), ocr_result_block.bbox.bottomRight()), added_boxes)
+                new_box.properties.ocr_result_block = ocr_result_block
+                new_box.update()
+
+                self.current_box = None
+
+                added_boxes += 1
+
+        self.update_property_editor()

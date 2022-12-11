@@ -112,27 +112,31 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         # TODO: Works for now but a bit dirty, investigate further
         return numpy.array(image.bits()).reshape((image.height(), image.width(), 4))
 
-    def analyze_layout(self) -> list:
+    def analyze_layout(self) -> None:
         # TODO: Check for actual page
-        new_boxes = []
-        if self.scene().image:
-            image = self.pixmap_to_cv2(self.scene().image)
+        # new_boxes = []
+        # if self.scene().image:
+        #     image = self.pixmap_to_cv2(self.scene().image)
 
-            # ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-            ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 100, 255, cv2.THRESH_BINARY_INV)
+        #     # ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+        #     ret1, th1 = cv2.threshold(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 100, 255, cv2.THRESH_BINARY_INV)
 
-            kernel = numpy.ones((5, 5), 'uint8')
-            margin_img = cv2.dilate(th1, kernel, iterations=5)
+        #     kernel = numpy.ones((5, 5), 'uint8')
+        #     margin_img = cv2.dilate(th1, kernel, iterations=5)
 
-            # cv2.imshow("test", margin_img)
+        #     # cv2.imshow("test", margin_img)
 
-            (contours, _) = cv2.findContours(margin_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        #     (contours, _) = cv2.findContours(margin_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            for cnt in reversed(contours):
-                x, y, w, h = cv2.boundingRect(cnt)
+        #     for cnt in reversed(contours):
+        #         x, y, w, h = cv2.boundingRect(cnt)
 
-                box = QtCore.QRectF(x, y, w, h)
+        #         box = QtCore.QRectF(x, y, w, h)
 
-                new_boxes.append(self.scene().add_box(box))
-                self.scene().current_box = None
-        return new_boxes
+        #         new_boxes.append(self.scene().add_box(box))
+        #         self.scene().current_box = None
+        # return new_boxes
+
+        self.scene().analyse_layout()
+
+

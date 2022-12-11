@@ -81,7 +81,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.temp_dir.cleanup()
 
     def setup_project(self, project=None) -> None:
-        self.engine_manager = OCREngineManager([OCREngineTesseract()])
+        # self.engine_manager = OCREngineManager([OCREngineTesseract()])
+        self.engine_manager = OCREngineManager([OCREngineTesserocr()])
 
         if project:
             self.project = project
@@ -383,11 +384,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def analyze_layout_and_recognize(self) -> None:
         boxes = self.box_editor.analyze_layout()
 
-        for box in boxes:
-            self.box_editor.scene().recognize_box(box)
-            QtCore.QCoreApplication.instance().processEvents()
-            self.box_editor.scene().update()
-            box.update()
+        # for box in boxes:
+        #     self.box_editor.scene().recognize_box(box)
+        #     QtCore.QCoreApplication.instance().processEvents()
+        #     self.box_editor.scene().update()
+        #     box.update()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():

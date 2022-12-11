@@ -444,14 +444,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         match self.editor_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
-                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    # Draw rubber band when no box is selected or Ctrl is being pressed
-                    if not box_clicked or (box_clicked and event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier):
-                        self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
-                elif event.buttons() == QtCore.Qt.MouseButton.MiddleButton:
-                    view = self.views()[0]
-                    if isinstance(view, BoxEditorView):
-                        view.origin = event.pos().toPoint()
+                match event.buttons():
+                    case QtCore.Qt.MouseButton.LeftButton:
+                        # Draw rubber band when no box is selected or Ctrl is being pressed
+                        if not box_clicked or (box_clicked and event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier):
+                            self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
+                    case QtCore.Qt.MouseButton.MiddleButton:
+                        view = self.views()[0]
+                        if isinstance(view, BoxEditorView):
+                            view.origin = event.pos().toPoint()
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 if not box_clicked:
                     # Start drawing a new box
@@ -533,10 +534,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        # if event.buttons() == QtCore.Qt.RightButton:
-        #     self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
-        #     self.views()[0].setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
-
         match self.editor_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)

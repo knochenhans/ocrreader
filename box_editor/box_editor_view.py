@@ -79,36 +79,6 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         else:
             super().wheelEvent(event)
 
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        '''Handle movement by mouse'''
-        oldPoint = self.mapToScene(self.origin)
-        newPoint = self.mapToScene(event.pos())
-        translation = newPoint - oldPoint
-
-        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
-        if event.buttons() == QtCore.Qt.RightButton:
-            pass
-        if event.buttons() == QtCore.Qt.MiddleButton:
-            self.translate(translation.x(), translation.y())
-
-        self.origin = event.pos()
-
-        super().mouseMoveEvent(event)
-
-    # def get_boxes(self, only_selected: bool = False) -> list:
-    #     boxes = []
-
-    #     for item in self.scene().items():
-    #         if isinstance(item, Box):
-    #             if only_selected:
-    #                 if item in self.scene().selectedItems():
-    #                     boxes.append(item)
-    #             else:
-    #                 boxes.append(item)
-
-    #     boxes.sort(key=lambda x: x.properties.order)
-    #     return boxes
-
     def pixmap_to_cv2(self, pixmap: QtGui.QPixmap):
         image = pixmap.toImage().copy()
 

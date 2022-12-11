@@ -223,6 +223,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
             rect = self.rect()
 
+            #TODO: right < left / bottom < top not possible
             if self.left_touched:
                 rect.setLeft(pos.x())
             if self.right_touched:
@@ -382,3 +383,5 @@ class Box(QtWidgets.QGraphicsRectItem):
     def set_type_to_image(self) -> None:
         self.properties.type = BOX_DATA_TYPE.IMAGE
         self.update()
+
+    

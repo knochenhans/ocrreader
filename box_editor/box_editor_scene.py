@@ -90,6 +90,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
         super().__init__(parent)
         self.current_box = None
+        self.current_rect = QtCore.QRectF()
         self.header_item = None
         self.footer_item = None
 
@@ -110,7 +111,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         # Current editor state
-        self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
+        self.editor_state = BOX_EDITOR_SCENE_STATE.SELECT
+        self.set_editor_state(self.editor_state)
 
         # Current box type for drawing boxes
         self.current_box_type = BOX_DATA_TYPE.IMAGE
@@ -164,11 +166,25 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def set_editor_state(self, new_state: BOX_EDITOR_SCENE_STATE) -> None:
         cursor = QtCore.Qt.CursorShape.ArrowCursor
 
+        old_state = self.editor_state
+
+        match old_state:
+            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                self.views()[0].setStyleSheet('')
+                for item in self.items():
+                    item.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+                    
         match new_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 cursor = QtCore.Qt.CursorShape.ArrowCursor
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 cursor = QtCore.Qt.CursorShape.CrossCursor
+
+                # Set color for rubberbox to resemble actual box (very limited though)
+                self.views()[0].setStyleSheet('selection-background-color: rgb(0, 0, 255)')
+
+                for item in self.items():
+                    item.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
             case BOX_EDITOR_SCENE_STATE.HAND:
                 cursor = QtCore.Qt.CursorShape.OpenHandCursor
             case BOX_EDITOR_SCENE_STATE.PLACE_HEADER | BOX_EDITOR_SCENE_STATE.PLACE_FOOTER:
@@ -401,7 +417,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         if item:
             if not self.renumber_line:
                 self.renumber_line = QtWidgets.QGraphicsLineItem()
-                
+
                 pen = QtGui.QPen(QtGui.QColor(227, 35, 35, 255))
                 pen.setWidth(3)
                 pen.setStyle(QtCore.Qt.PenStyle.DotLine)
@@ -439,13 +455,14 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 if not box_clicked:
                     # Start drawing a new box
-                    if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                        if not self.current_box:
-                            rect = QtCore.QRectF()
-                            rect.setTopLeft(event.scenePos())
-                            rect.setBottomRight(event.scenePos())
+                    # if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
+                    #     if not self.current_box:
+                    #         rect = QtCore.QRectF()
+                    #         rect.setTopLeft(event.scenePos())
+                    #         rect.setBottomRight(event.scenePos())
 
-                            self.add_box(rect)
+                    #         self.add_box(rect)
+                    self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
             case BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
                 if self.header_item:
                     if self.project:
@@ -487,17 +504,21 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     if isinstance(box_clicked, Box):
                         self.set_renumber_first_box(box_clicked)
                 return
+            case BOX_EDITOR_SCENE_STATE.PLACE_X_SPLITLINE:
+
+                if self.x_splitline and box_clicked:
+                    box_line = QtWidgets.QGraphicsLineItem(box_clicked)
+                    box_line.setLine(self.x_splitline.line().x1(), box_clicked.rect().top(), self.x_splitline.line().x2(), box_clicked.rect().bottom())
+
+                    self.removeItem(self.x_splitline)
+                    self.x_splitline = None
+
+                self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         match self.editor_state:
-            case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
-                if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    if self.current_box:
-                        rect = self.current_box.rect()
-                        rect.setBottomRight(event.scenePos())
-                        self.current_box.setRect(rect)
             case BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
                 if self.header_item:
                     self.header_item.update_bottom_position(event.scenePos().y())
@@ -512,7 +533,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
-        '''Commit changes after drawing box or remove if too small'''
         # if event.buttons() == QtCore.Qt.RightButton:
         #     self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
         #     self.views()[0].setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
@@ -521,17 +541,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
-                if self.current_box:
-                    corner = self.current_box.rect().topLeft()
-                    if (event.scenePos().x() - corner.x()) > 10 and (event.scenePos().y() - corner.y()) > 10:
-                        self.current_box.updateProperties()
-                        self.current_box.setSelected(True)
-                        self.current_box.setFocus()
-                    else:
-                        self.remove_box(self.current_box)
-                self.current_box = None
+                if not self.current_rect.isEmpty():
+                    self.add_box(self.current_rect.normalized())
+
                 self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
         super().mouseReleaseEvent(event)
+
+    def rubber_band_changed(self, rubberBandRect: QtCore.QRect, fromScenePoint, toScenePoint):
+        if not rubberBandRect.isEmpty():
+            self.current_rect = rubberBandRect.toRectF()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         # Get selected boxes:
@@ -628,7 +646,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def analyse_layout(self) -> None:
         from_header = 0.0
         to_footer = 0.0
-        
+
         if self.header_item:
             from_header = self.header_item.rect().bottom()
         if self.footer_item:
@@ -638,7 +656,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         if ocr_result_blocks:
             added_boxes = 0
-        
+
             for ocr_result_block in ocr_result_blocks:
                 new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox.topLeft(), ocr_result_block.bbox.bottomRight()), added_boxes)
                 new_box.properties.ocr_result_block = ocr_result_block

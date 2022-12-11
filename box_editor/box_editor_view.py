@@ -26,6 +26,9 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         # Enable so we get mouse move events
         self.setMouseTracking(True)
 
+        # Send rubber band changes to scene for drawing boxes
+        self.rubberBandChanged.connect(self.scene().rubber_band_changed)
+
     def load_page(self, page: Page):
         self.scene().clear()
         self.scene().box_counter = 0
@@ -138,5 +141,3 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         # return new_boxes
 
         self.scene().analyse_layout()
-
-

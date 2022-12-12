@@ -30,11 +30,11 @@ class Exporter():
     def new_page(self):
         pass
 
-    def prepare_filename(self, filename, extension):
+    def prepare_filename(self, filename, extension) -> str:
         if os.path.splitext(filename)[1] != '.' + extension:
             filename += '.' + extension
 
-        self.filename = filename
+        return filename
 
 
 class ExporterPlainText(Exporter):
@@ -43,13 +43,6 @@ class ExporterPlainText(Exporter):
 
     def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = '') -> bool:
         super().open(temp_dir, name, author)
-
-        extension = 'txt'
-        filename = QtWidgets.QFileDialog.getSaveFileName(self.parent, caption=self.parent.tr('Export to Plain Text', 'dialog_export_caption_plain_text'),
-                                                         filter=self.parent.tr('Text file (*.text)', 'dialog_export_filter_plain_text'))[0]
-        self.text = ''
-
-        self.prepare_filename(filename, extension)
 
         return True
 
@@ -61,8 +54,49 @@ class ExporterPlainText(Exporter):
         self.text += '\n\n'
 
     def close(self):
-        with open(self.filename, 'w') as file:
-            file.write(self.text)
+        document = QtGui.QTextDocument(self.text)
+        preview = ExporterPreviewWindow(self.parent, document, self.preview_document_changed)
+
+        if preview.exec():
+            extension = 'txt'
+            filename = QtWidgets.QFileDialog.getSaveFileName(self.parent, caption=self.parent.tr('Export to Plain Text', 'dialog_export_caption_plain_text'),
+                                                             filter=self.parent.tr('Text file (*.text)', 'dialog_export_filter_plain_text'))[0]
+            self.text = ''
+
+            with open(self.prepare_filename(filename, extension), 'w') as file:
+                file.write(self.text)
+
+    def preview_document_changed(self, document: QtGui.QTextDocument):
+        self.document = document
+
+
+class ExporterPreviewWindow(QtWidgets.QDialog):
+    def __init__(self, parent, document: QtGui.QTextDocument, callback):
+        super().__init__(parent)
+
+        self.callback = callback
+
+        self.setGeometry(500, 500, 1000, 800)
+
+        layout = QtWidgets.QGridLayout(self)
+        self.setLayout(layout)
+
+        self.preview = QtWidgets.QTextEdit(self)
+        self.preview.textChanged.connect(self.preview_edited)
+        self.preview.setDocument(document)
+
+        layout.addWidget(self.preview, 0, 0)
+
+        self.setWindowTitle(self.tr('Export Preview', 'dialog_export_window_title_preview'))
+
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout.addWidget(buttons)
+
+    def preview_edited(self):
+        self.callback(self.preview.document())
 
 
 class ExporterEPUB_OptionWindow(QtWidgets.QDialog):
@@ -76,6 +110,7 @@ class ExporterEPUB_OptionWindow(QtWidgets.QDialog):
 
         self.css_edit = QtWidgets.QPlainTextEdit(self)
         self.css_edit.textChanged.connect(self.css_edited)
+        self.css_edit.setPlaceholderText('Enter CSS code to include in exported EPUB file here.')
 
         layout.addWidget(self.css_edit, 0, 0)
 
@@ -98,16 +133,10 @@ class ExporterEPUB(Exporter):
         self.current_chapter = epub.EpubHtml(title='Intro', file_name='chap_01.xhtml', lang='de')
         self.current_chapter.content = ''
         self.css = ''
+        self.preview_document = QtGui.QTextDocument()
 
     def open(self, temp_dir: tempfile.TemporaryDirectory, name: str = '', author: str = '') -> bool:
         super().open(temp_dir, name, author)
-
-        extension = 'epub'
-        filename = QtWidgets.QFileDialog.getSaveFileName(self.parent, caption=self.parent.tr('Export to EPUB', 'dialog_export_caption_epub'),
-                                                         filter=self.parent.tr('EPUB file (*.epub)', 'dialog_export_filter_epub'))[0]
-        self.text = ''
-
-        self.prepare_filename(filename, extension)
 
         options = ExporterEPUB_OptionWindow(self.parent, self.update_css)
 
@@ -128,13 +157,22 @@ class ExporterEPUB(Exporter):
         classes = ''
 
         if box_data.type == BOX_DATA_TYPE.TEXT:
-            if box_data.tag:
-                if box_data.class_str:
-                    classes = f' class="{box_data.class_str}"'
+            document_helper = DocumentHelper(box_data.text.clone(), box_data.language.pt1)
+            paragraphs = document_helper.break_document()
 
-                text += f'<{box_data.tag + classes}>'
+            if not box_data.tag:
+                box_data.tag = 'div'
 
-            text += box_data.text.toPlainText()
+            if box_data.class_str:
+                classes = f' class="{box_data.class_str}"'
+
+            text += f'<{box_data.tag + classes}>'
+
+            for p, paragraph in enumerate(paragraphs):
+                for l, line in enumerate(paragraph):
+                    for f, fragment in enumerate(line):
+                        format: QtGui.QTextCharFormat = fragment.charFormat()
+                        text += fragment.text()
 
             if box_data.tag:
                 text += f'</{box_data.tag}>'
@@ -165,10 +203,25 @@ class ExporterEPUB(Exporter):
         self.book.add_item(epub.EpubNav())
 
         self.book.spine = ['nav', self.current_chapter]
-        epub.write_epub(self.filename, self.book, {})
+
+        cursor = QtGui.QTextCursor(self.preview_document)
+        cursor.insertHtml(str(self.current_chapter.content))
+
+        preview = ExporterPreviewWindow(self.parent, self.preview_document, self.preview_document_changed)
+
+        if preview.exec():
+            extension = 'epub'
+            filename = QtWidgets.QFileDialog.getSaveFileName(self.parent, caption=self.parent.tr('Export to EPUB', 'dialog_export_caption_epub'),
+                                                             filter=self.parent.tr('EPUB file (*.epub)', 'dialog_export_filter_epub'))[0]
+            self.text = ''
+
+            epub.write_epub(self.prepare_filename(filename, extension), self.book, {})
 
     def update_css(self, css: str):
         self.css = css
+
+    def preview_document_changed(self, document: QtGui.QTextDocument):
+        self.preview_document = document
 
 
 class ExporterManager():

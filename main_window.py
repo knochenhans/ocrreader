@@ -341,9 +341,9 @@ class MainWindow(QtWidgets.QMainWindow):
             for p, page in enumerate(self.project.pages):
                 if p > 0:
                     exporter.new_page()
-                for box_datas in page.box_datas:
-                    if box_datas.export_enabled:
-                        exporter.write_box(box_datas, page, p)
+                for box_data in page.box_datas:
+                    if box_data.export_enabled:
+                        exporter.write_box(box_data, page, p)
 
             exporter.close()
 

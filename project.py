@@ -54,6 +54,9 @@ class Page():
             box_data.read(file)
             self.box_datas.append(box_data)
 
+    def clear(self):
+        self.box_datas.clear()
+
 
 class Project():
     def __init__(self, name='', default_language: Lang = Lang('English'), default_paper_size: str = 'a4'):

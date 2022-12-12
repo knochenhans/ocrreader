@@ -379,9 +379,11 @@ class MainWindow(QtWidgets.QMainWindow):
     #     # print(text.toPlainText())
 
     def analyze_layout(self) -> None:
+        self.box_editor.scene().clear_boxes()
         self.box_editor.analyze_layout()
 
     def analyze_layout_and_recognize(self) -> None:
+        self.box_editor.scene().clear_boxes()
         boxes = self.box_editor.analyze_layout()
 
         # for box in boxes:

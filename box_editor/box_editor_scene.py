@@ -121,6 +121,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.renumber_line = None
         self.set_renumber_first_box(None)
 
+        self.swap_left_right = False
+        self.swap_top_bottom = False
+
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
 
@@ -163,6 +166,12 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         return True
 
+    def clear_boxes(self):
+        self.current_page.clear()
+        for item in self.items():
+            if isinstance(item, Box):
+                self.removeItem(item)
+
     def set_editor_state(self, new_state: BOX_EDITOR_SCENE_STATE) -> None:
         cursor = QtCore.Qt.CursorShape.ArrowCursor
 
@@ -173,7 +182,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 self.views()[0].setStyleSheet('')
                 for item in self.items():
                     item.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-                    
+
         match new_state:
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 cursor = QtCore.Qt.CursorShape.ArrowCursor
@@ -432,7 +441,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         from box_editor.box_editor_view import BoxEditorView
         '''Handle adding new box by mouse'''
-        #box_clicked = self.itemAt(event.scenePos(), QtGui.QTransform())
 
         box_clicked = None
 
@@ -455,14 +463,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                             view.origin = event.pos().toPoint()
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 if not box_clicked:
-                    # Start drawing a new box
-                    # if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    #     if not self.current_box:
-                    #         rect = QtCore.QRectF()
-                    #         rect.setTopLeft(event.scenePos())
-                    #         rect.setBottomRight(event.scenePos())
-
-                    #         self.add_box(rect)
                     self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
             case BOX_EDITOR_SCENE_STATE.PLACE_HEADER:
                 if self.header_item:
@@ -488,9 +488,6 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                                     item.properties.order = box_clicked.properties.order
                                     box_clicked.properties.order = swap
                                     break
-
-                        # self.renumber_first_box.properties.order = item_clicked.properties.order
-                        # item_clicked.properties.order = next_number
 
                         self.renumber_first_box.update()
                         self.clearSelection()
@@ -538,8 +535,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.SELECT:
                 self.views()[0].setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
+                # Commit current rubberband drag as new box and select
                 if not self.current_rect.isEmpty():
-                    self.add_box(self.current_rect.normalized())
+                    self.add_box(self.current_rect.normalized()).setSelected(True)
 
                 self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
         super().mouseReleaseEvent(event)
@@ -641,6 +639,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             painter.drawPixmap(self.sceneRect(), self.image, QtCore.QRectF(self.image.rect()))
 
     def analyse_layout(self) -> None:
+        '''Analyse layout, excluding footer and header'''
         from_header = 0.0
         to_footer = 0.0
 

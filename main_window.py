@@ -102,6 +102,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.page_icon_view = PagesIconView(self, self.project)
         self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
+        self.page_icon_view.addAction(self.load_image_action)
 
         self.splitter_2 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter_2.addWidget(self.box_editor)

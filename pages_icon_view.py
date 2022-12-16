@@ -45,6 +45,7 @@ class PagesIconView(QtWidgets.QListView):
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
         self.setTextElideMode(QtCore.Qt.TextElideMode.ElideMiddle)
         self.setWordWrap(True)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
 
         delegate = StyledItemDelegate(self)
         self.setItemDelegate(delegate)

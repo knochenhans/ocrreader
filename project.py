@@ -77,6 +77,9 @@ class Project():
     def add_page(self, page: Page):
         self.pages.append(page)
 
+    def remove_page(self, page: Page):
+        self.pages.remove(page)
+
     def write(self, file: QtCore.QDataStream):
         file.writeInt16(self.format_revision)
         file.writeString(self.name)

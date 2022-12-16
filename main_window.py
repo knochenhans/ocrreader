@@ -65,6 +65,10 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(self.exit_action)
 
+        edit_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&Edit', 'menu_edit'))
+        edit_menu.addAction(self.undo_action)
+        edit_menu.addAction(self.redo_action)
+
         self.setup_project()
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))
@@ -102,7 +106,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.page_icon_view = PagesIconView(self, self.project)
         self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
-        self.page_icon_view.addAction(self.load_image_action)
+        self.page_icon_view.context_menu.addAction(self.load_image_action)
 
         self.splitter_2 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter_2.addWidget(self.box_editor)

@@ -124,6 +124,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.swap_left_right = False
         self.swap_top_bottom = False
 
+        self.setBackgroundBrush(QtGui.QColorConstants.Svg.gray)
+
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
 
@@ -635,8 +637,12 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # self.project.current_page_idx = page_number
 
     def drawBackground(self, painter, rect: QtCore.QRectF) -> None:
-        '''Setup background image for page'''
+        '''Draw background image for page'''
+
         if self.image:
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(self.backgroundBrush())
+            painter.drawRect(rect)
             painter.drawPixmap(self.sceneRect(), self.image, QtCore.QRectF(self.image.rect()))
 
     def analyse_layout(self) -> None:
@@ -662,7 +668,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 self.current_box = None
 
                 added_boxes += 1
-                #TODO: Move to thread
+                # TODO: Move to thread
                 QtCore.QCoreApplication.instance().processEvents()
 
         self.update_property_editor()

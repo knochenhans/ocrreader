@@ -34,9 +34,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_project_filename = ''
         self.last_project_directory = ''
 
-        toolbar = QtWidgets.QToolBar('Toolbar')
-        toolbar.setIconSize(QtCore.QSize(32, 32))
-        self.addToolBar(toolbar)
+        self.toolbar = QtWidgets.QToolBar('Toolbar')
+        self.toolbar.setIconSize(QtCore.QSize(32, 32))
+        self.addToolBar(self.toolbar)
 
         self.setStatusBar(QtWidgets.QStatusBar(self))
 
@@ -44,32 +44,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         menu = self.menuBar()
 
+        self.undo_stack = QtGui.QUndoStack(self)
+
+        self.file_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&File', 'menu_file'))
+        self.edit_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&Edit', 'menu_edit'))
+
+        self.page_icon_view_context_menu = QtWidgets.QMenu(self)
+
         self.setup_actions()
-
-        toolbar.addAction(self.load_image_action)
-        toolbar.addAction(self.open_project_action)
-        toolbar.addAction(self.save_project_action)
-        toolbar.addAction(self.export_action)
-        toolbar.addAction(self.export_txt_action)
-        toolbar.addAction(self.export_epub_action)
-        toolbar.addAction(self.analyze_layout_action)
-        toolbar.addAction(self.analyze_layout_and_recognize_action)
-
-        file_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&File', 'menu_file'))
-        file_menu.addAction(self.load_image_action)
-        file_menu.addAction(self.open_project_action)
-        file_menu.addAction(self.save_project_action)
-        file_menu.addAction(self.close_project_action)
-        file_menu.addAction(self.export_action)
-        file_menu.addAction(self.export_txt_action)
-        file_menu.addAction(self.export_epub_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self.exit_action)
-
-        edit_menu: QtWidgets.QMenu = menu.addMenu(self.tr('&Edit', 'menu_edit'))
-        edit_menu.addAction(self.undo_action)
-        edit_menu.addAction(self.redo_action)
-
         self.setup_project()
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))
@@ -101,13 +83,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.property_editor.project_widget.default_paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
         self.property_editor.page_widget.paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
 
-        self.box_editor = BoxEditorView(self, self.engine_manager, self.property_editor, self.project)
+        self.box_editor = BoxEditorView(self, self.undo_stack, self.engine_manager, self.property_editor, self.project)
         self.box_editor.property_editor = self.property_editor
         self.box_editor.setMinimumWidth(500)
 
         self.page_icon_view = PagesIconView(self, self.project)
         self.page_icon_view.selectionModel().currentChanged.connect(self.page_selected)
-        self.page_icon_view.context_menu.addAction(self.load_image_action)
+        self.page_icon_view.customContextMenuRequested.connect(self.on_page_icon_view_context_menu)
 
         self.splitter_2 = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter_2.addWidget(self.box_editor)
@@ -163,18 +145,125 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.analyze_layout_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-line.png'), self.tr('&Analyze Layout', 'action_analyze_layout'), self)
         self.analyze_layout_action.setStatusTip(self.tr('Analyze Layout', 'status_analyze_layout'))
-        self.analyze_layout_action.triggered.connect(self.analyze_layout)
+        self.analyze_layout_action.triggered.connect(self.analyze_layout_current)
         self.analyze_layout_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+a'))
 
         self.analyze_layout_and_recognize_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-fill.png'), self.tr('Analyze Layout and &Recognize', 'action_analyze_layout_and_recognize'), self)
         self.analyze_layout_and_recognize_action.setStatusTip(self.tr('Analyze Layout and Recognize', 'status_analyze_layout_and_recognize'))
-        self.analyze_layout_and_recognize_action.triggered.connect(self.analyze_layout_and_recognize)
+        self.analyze_layout_and_recognize_action.triggered.connect(self.analyze_layout_and_recognize_current)
         self.analyze_layout_and_recognize_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+r'))
+
+        self.analyze_layout_action_selected = QtGui.QAction(QtGui.QIcon('resources/icons/layout-line.png'), self.tr('&Analyze Layout for Selected Pages', 'action_analyze_layout'), self)
+        self.analyze_layout_action_selected.setStatusTip(self.tr('Analyze Layout', 'status_analyze_layout'))
+        self.analyze_layout_action_selected.triggered.connect(self.analyze_layout_selected)
+
+        self.analyze_layout_and_recognize_action_selected = QtGui.QAction(QtGui.QIcon('resources/icons/layout-fill.png'),
+                                                                          self.tr('Analyze Layout and &Recognize Selected Pages', 'action_analyze_layout_and_recognize'), self)
+        self.analyze_layout_and_recognize_action_selected.setStatusTip(self.tr('Analyze Layout and Recognize', 'status_analyze_layout_and_recognize'))
+        self.analyze_layout_and_recognize_action_selected.triggered.connect(self.analyze_layout_and_recognize_selected)
 
         self.close_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-line.png'), self.tr('&Close project', 'action_close_project'), self)
         self.close_project_action.setStatusTip(self.tr('Close project', 'status_close_project'))
         self.close_project_action.triggered.connect(self.close_current_project)
         self.close_project_action.setShortcut(QtGui.QKeySequence('Ctrl+w'))
+
+        self.undo_action = self.undo_stack.createUndoAction(self, self.tr('&Undo', 'Undo'))
+        self.undo_action.setIcon(QtGui.QIcon('resources/icons/arrow-go-back-line.png'))
+        self.undo_action.setShortcut(QtGui.QKeySequence('Ctrl+z'))
+        # self.undo_action.triggered.connect(self.undo)
+
+        self.redo_action = self.undo_stack.createRedoAction(self, self.tr('&Redo', 'Redo'))
+        self.redo_action.setIcon(QtGui.QIcon('resources/icons/arrow-go-forward-line.png'))
+        self.redo_action.setShortcut(QtGui.QKeySequence('Ctrl+y'))
+        # self.redo_action.triggered.connect(self.redo)
+
+        self.action_delete_selected_pages = QtGui.QAction(self.tr('Delete', 'delete_pages'), self)
+
+        self.page_icon_view_context_menu.addAction(self.load_image_action)
+
+        self.toolbar.addAction(self.load_image_action)
+        self.toolbar.addAction(self.open_project_action)
+        self.toolbar.addAction(self.save_project_action)
+        self.toolbar.addAction(self.export_action)
+        self.toolbar.addAction(self.export_txt_action)
+        self.toolbar.addAction(self.export_epub_action)
+        self.toolbar.addAction(self.analyze_layout_action)
+        self.toolbar.addAction(self.analyze_layout_and_recognize_action)
+        self.toolbar.addAction(self.undo_action)
+        self.toolbar.addAction(self.redo_action)
+
+        self.file_menu.addAction(self.load_image_action)
+        self.file_menu.addAction(self.open_project_action)
+        self.file_menu.addAction(self.save_project_action)
+        self.file_menu.addAction(self.close_project_action)
+        self.file_menu.addAction(self.export_action)
+        self.file_menu.addAction(self.export_txt_action)
+        self.file_menu.addAction(self.export_epub_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.exit_action)
+
+        self.edit_menu.addAction(self.undo_action)
+        self.edit_menu.addAction(self.redo_action)
+
+    def on_page_icon_view_context_menu(self, point):
+        if self.page_icon_view.selectedIndexes():
+            self.page_icon_view_context_menu.addAction(self.action_delete_selected_pages)
+            self.page_icon_view_context_menu.addAction(self.analyze_layout_action_selected)
+            self.page_icon_view_context_menu.addAction(self.analyze_layout_and_recognize_action_selected)
+
+        action = self.page_icon_view_context_menu.exec_(self.page_icon_view.mapToGlobal(point))
+
+        if action == self.action_delete_selected_pages:
+            self.page_icon_view.remove_selected_pages()
+            self.update()
+        # elif action == self.action_select_all:
+        #     # self.model().removeRows(0, self.model().rowCount())
+
+    # def undo(self):
+    #     pass
+
+    # def redo(self):
+    #     pass
+
+    def analyze_pages(self, recognize=False, current=False):
+        # if selected:
+        #     indexes = self.page_icon_view.selectedIndexes()
+        # else:
+        #     for row in range(self.page_icon_view.model().rowCount()):
+        #         indexes.append(self.page_icon_view.model().index(row, 0))
+
+        indexes = self.page_icon_view.selectedIndexes()
+
+        if indexes:
+            if current:
+                indexes = [indexes[0]]
+
+            for index in indexes:
+                self.page_icon_view.clearSelection()
+                self.page_icon_view.setCurrentIndex(index)
+                self.page_selected(index)
+                self.page_icon_view.update(index)
+                QtCore.QCoreApplication.instance().processEvents()
+
+                self.box_editor.scene().clear_boxes()
+                self.box_editor.update()
+                QtCore.QCoreApplication.instance().processEvents()
+
+                self.box_editor.analyze_layout(recognize)
+                self.box_editor.update()
+                QtCore.QCoreApplication.instance().processEvents()
+
+    def analyze_layout_current(self) -> None:
+        self.analyze_pages(current=True)
+
+    def analyze_layout_and_recognize_current(self) -> None:
+        self.analyze_pages(current=True, recognize=True)
+
+    def analyze_layout_selected(self) -> None:
+        self.analyze_pages()
+
+    def analyze_layout_and_recognize_selected(self) -> None:
+        self.analyze_pages(recognize=True)
 
     def page_selected(self, index: QtCore.QModelIndex):
         if self.box_editor.current_page == index.data(QtCore.Qt.UserRole):
@@ -383,20 +472,6 @@ class MainWindow(QtWidgets.QMainWindow):
     #     textdoc.save('/tmp/headers.odt')
 
     #     # print(text.toPlainText())
-
-    def analyze_layout(self) -> None:
-        self.box_editor.scene().clear_boxes()
-        self.box_editor.analyze_layout()
-
-    def analyze_layout_and_recognize(self) -> None:
-        self.box_editor.scene().clear_boxes()
-        boxes = self.box_editor.analyze_layout()
-
-        # for box in boxes:
-        #     self.box_editor.scene().recognize_box(box)
-        #     QtCore.QCoreApplication.instance().processEvents()
-        #     self.box_editor.scene().update()
-        #     box.update()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():

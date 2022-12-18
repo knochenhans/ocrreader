@@ -284,6 +284,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         else:
             self.current_box.properties.order = self.box_counter
         self.box_counter += 1
+
         return self.current_box
 
     def restore_box(self, box_datas: BoxData) -> Box:
@@ -661,5 +662,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 self.current_box = None
 
                 added_boxes += 1
+                #TODO: Move to thread
+                QtCore.QCoreApplication.instance().processEvents()
 
         self.update_property_editor()

@@ -47,39 +47,29 @@ class PagesIconView(QtWidgets.QListView):
         self.setTextElideMode(QtCore.Qt.TextElideMode.ElideMiddle)
         self.setWordWrap(True)
         self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.onCustomContextMenuRequested)
+
         self.setSelectionMode(QtWidgets.QListView.SelectionMode.ExtendedSelection)
         self.project = project
 
         delegate = StyledItemDelegate(self)
         self.setItemDelegate(delegate)
 
-        self.context_menu = QtWidgets.QMenu(self)
-
-        self.action_delete_selected = QtGui.QAction(self.tr('Delete', 'delete_pages'), self)
-        # self.action_select_all = QtGui.QAction(self.tr('Select all', 'select_all_pages'), self)
-
-        self.context_menu.addAction(self.action_delete_selected)
-        # self.context_menu.addAction(self.action_select_all)
-
     def remove_selected_pages(self):
+        rows = set()
+
         for row in self.selectedIndexes():
-            index = self.model().index(row.row(), 0)
+            rows.add(row.row())
+
+        # Remove rows from the bottom up to avoid problems
+        for row in sorted(rows, reverse=True):
+            index = self.model().index(row, 0)
             page = self.model().itemData(index)
-            self.model().removeRows(row.row(), 1)
+            self.model().removeRow(row)
 
             # Remove linked page data in project
             if isinstance(page, Page):
                 self.project.remove_page(page)
             self.update(index)
-
-    def onCustomContextMenuRequested(self, point):
-        action = self.context_menu.exec_(self.mapToGlobal(point))
-
-        if action == self.action_delete_selected:
-            self.remove_selected_pages()
-        # elif action == self.action_select_all:
-        #     # self.model().removeRows(0, self.model().rowCount())
 
     def load_page(self, page: Page):
         self.model().add_page(page)

@@ -611,6 +611,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                             case QtCore.Qt.Key.Key_R:
                                 for box in boxes:
                                     box.recognize_text()
+                                    # TODO: Move to thread
+                                    QtCore.QCoreApplication.instance().processEvents()
                             case QtCore.Qt.Key.Key_D:
                                 for box in boxes:
                                     self.toggle_export_enabled(box)

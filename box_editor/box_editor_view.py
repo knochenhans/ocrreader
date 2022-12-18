@@ -116,5 +116,7 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         if recognize:
             for box in self.scene().items():
                 box.recognize_text()
+                # TODO: Move to thread
+                QtCore.QCoreApplication.instance().processEvents()
 
 

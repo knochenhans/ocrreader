@@ -1,6 +1,6 @@
 import cv2
 import numpy
-from ocr_engine import OCREngineManager
+from ocr_engine.ocr_engine import OCREngineManager
 from project import Project, Page
 from PySide6 import QtCore, QtGui, QtWidgets
 

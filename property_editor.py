@@ -8,7 +8,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box_editor_scene import BoxData
 from document_helper import DocumentHelper
-from ocr_engine import OCREngineManager
+from ocr_engine.ocr_engine import OCREngineManager
 from project import Project
 
 

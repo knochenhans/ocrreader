@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 from iso639 import Lang
-from ocr_engine import OCREngineManager
+from ocr_engine.ocr_engine import OCREngineManager
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText

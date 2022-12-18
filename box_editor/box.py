@@ -2,10 +2,10 @@ import math
 
 import cv2
 import numpy
-from ocr_engine import OCREngineManager
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box_data import BOX_DATA_TYPE, BoxData
+from ocr_engine.ocr_engine import OCREngineManager
 
 
 class BoxColor():

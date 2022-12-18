@@ -1,5 +1,5 @@
 from iso639 import Lang
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui
 
 from document_helper import DocumentHelper
 from hocr_data import HOCR_Data

@@ -5,7 +5,6 @@ import numpy
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box_data import BOX_DATA_TYPE, BoxData
-from ocr_engine.ocr_engine import OCREngineManager
 
 
 class BoxColor():
@@ -21,7 +20,7 @@ class BoxColor():
 class Box(QtWidgets.QGraphicsRectItem):
     text_recognized = QtCore.Signal(str)
 
-    def __init__(self, rect: QtCore.QRectF, engine_manager: OCREngineManager, scene) -> None:
+    def __init__(self, rect: QtCore.QRectF, engine_manager, scene) -> None:
         super().__init__(rect, parent=None)
 
         self.engine_manager = engine_manager

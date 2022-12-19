@@ -1,11 +1,11 @@
 from enum import Enum, auto
 
 from iso639 import Lang
-from ocr_engine.ocr_engine import OCREngineManager
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText
 from odf.text import P
+from ocr_result_block import OCRResultBlock
 from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -87,7 +87,7 @@ class BOX_EDITOR_SCENE_STATE(Enum):
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, parent, engine_manager: OCREngineManager, property_editor, project: Project, page: Page) -> None:
+    def __init__(self, parent, engine_manager, property_editor, project: Project, page: Page) -> None:
         super().__init__(parent)
         self.current_box = None
         self.current_rect = QtCore.QRectF()
@@ -322,30 +322,32 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
+        engine.start_recognize_thread(self.new_ocr_results, box, self.current_page.px_per_mm, box.properties.language, raw)
+
+    def new_ocr_results(self, result):
+        blocks, raw, original_box = result
+        
+        is_image = False
         remove_hyphens = False
 
         # TODO: Implement an option for this
-        if box.properties.language == Lang('German'):
+        if original_box.properties.language == Lang('German'):
             remove_hyphens = True
-
-        blocks = engine.recognize(box.get_image(), self.current_page.px_per_mm, box.properties.language, raw)
-
-        is_image = False
 
         if isinstance(blocks, list):
             if raw:
-                box.properties.ocr_result_block = blocks[0]
-                box.properties.text = blocks[0].get_text(False)
-                box.properties.recognized = True
+                original_box.properties.ocr_result_block = blocks[0]
+                original_box.properties.text = blocks[0].get_text(False)
+                original_box.properties.recognized = True
             else:
                 if len(blocks) == 1:
                     block = blocks[0]
 
                     if block.get_avg_confidence() > 30:
-                        box.properties.ocr_result_block = block
-                        box.properties.words = block.get_words()
-                        box.properties.text = block.get_text(True, remove_hyphens)
-                        box.properties.recognized = True
+                        original_box.properties.ocr_result_block = block
+                        original_box.properties.words = block.get_words()
+                        original_box.properties.text = block.get_text(True, remove_hyphens)
+                        original_box.properties.recognized = True
                     else:
                         is_image = True
                 elif len(blocks) > 1:
@@ -354,7 +356,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     # Multiple text blocks have been recognized within the selection, replace original box with new boxes
 
                     # Remove original box
-                    self.remove_box(box)
+                    self.remove_box(original_box)
 
                     added_boxes = 0
 
@@ -364,8 +366,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         if block.get_avg_confidence() > 30:
 
                             # Add new blocks at the recognized positions and adjust child elements
-                            new_box = self.add_box(QtCore.QRectF(block.bbox.translated(box.rect().topLeft().toPoint())), box.properties.order + added_boxes)
-                            dist = box.rect().topLeft() - new_box.rect().topLeft()
+                            new_box = self.add_box(QtCore.QRectF(block.bbox.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
+                            dist = original_box.rect().topLeft() - new_box.rect().topLeft()
                             new_box.properties.ocr_result_block = block
 
                             # Move paragraph lines and word boxes accordingly
@@ -391,9 +393,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         if is_image:
             # The original box is probably an image
-            box.set_type_to_image()
+            original_box.set_type_to_image()
 
-        box.update()
+        original_box.update()
         self.update_property_editor()
 
     def get_mouse_position(self) -> QtCore.QPointF:

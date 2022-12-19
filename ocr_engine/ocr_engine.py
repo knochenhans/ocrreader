@@ -9,6 +9,7 @@ from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui
 
+from box_editor.box_editor_scene import Box
 from ocr_result_block import OCRResultBlock
 
 
@@ -16,6 +17,7 @@ class OCREngine():
     def __init__(self, name: str):
         self.name = name
         self.languages = []
+        self.threadpool = QtCore.QThreadPool()
 
     def pixmap_to_pil(self, pixmap: QtGui.QPixmap) -> Image.Image:
         '''Convert into PIL image format'''
@@ -29,11 +31,14 @@ class OCREngine():
 
         return pil_image
 
-    def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> str | None:
-        return None
+    # def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> str | None:
+    #     return None
 
-    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
-        return None
+    # def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
+    #     return None
+
+    def start_recognize_thread(self, callback, box: Box, px_per_mm: float, language: Lang = Lang('English'), raw=False):
+        pass
 
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
         return None

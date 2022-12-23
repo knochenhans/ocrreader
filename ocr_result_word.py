@@ -1,27 +1,29 @@
+from dataclasses import dataclass
+
 from PySide6 import QtCore
 
 from hocr_data import HOCR_Data
 
 
+@dataclass
 class OCRResultWord(HOCR_Data):
-    def __init__(self, word=None):
-        self.text = ''
-        self.confidence = 0
+    text = ''
+    confidence = 0
 
+    def split_title_data(self, word):
         if word:
-            title_data = word['title']
-            super().__init__(title_data)
+            self.title_data = word['title']
+            super().split_title_data()
+
             self.text = word.get_text()
 
-            data_lines = title_data.split('; ')
+            data_lines = self.title_data.split('; ')
 
             for data_line in data_lines:
                 tokens = data_line.split(' ')
 
                 if tokens[0] == 'x_wconf':
                     self.confidence = int(tokens[1])
-        else:
-            super().__init__()
 
     def translate(self, distance: QtCore.QPoint):
         '''Translate coordinates by a distance'''

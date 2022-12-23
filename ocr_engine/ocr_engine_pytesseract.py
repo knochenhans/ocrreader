@@ -110,7 +110,7 @@ class OCREnginePytesseract(OCREngine):
 
                     paragraph.lines.append(line)
 
-            block = OCRResultBlock(image.size(), px_per_mm)
+            block = OCRResultBlock(image_size=image.size(), px_per_mm=px_per_mm)
             block.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.FixedFont)
             block.paragraphs.append(paragraph)
 

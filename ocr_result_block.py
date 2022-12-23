@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from iso639 import Lang
 from PySide6 import QtCore, QtGui
 
@@ -6,22 +8,30 @@ from hocr_data import HOCR_Data
 from ocr_result_paragraph import OCRResultParagraph
 from ocr_result_word import OCRResultWord
 
+from bs4 import Tag
 
+
+@dataclass
 class OCRResultBlock(HOCR_Data):
-    def __init__(self, image_size: QtCore.QSize = QtCore.QSize(), px_per_mm: float = 0.0, block=None, language: Lang = Lang('English')):
-        self.paragraphs = []
-        self.image_size = image_size
-        self.px_per_mm = px_per_mm
-        self.language = language
+    image_size: QtCore.QSize = QtCore.QSize()
+    px_per_mm: float = 0.0
+    language: Lang = Lang('English')
+    font: QtGui.QFont = QtGui.QFont()
+    foreground_color = QtGui.QColorConstants.Svg.black
+    paragraphs: list[OCRResultParagraph] = field(default_factory=list)
+
+    def __post_init__(self):
         self.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.GeneralFont)
-        self.foreground_color = QtGui.QColorConstants.Svg.black
-        if block:
-            super().__init__(block['title'])
+
+    def split_title_data(self, block):
+        if block.name:
+            self.title_data = block['title']
+            super().split_title_data()
 
             for p in block.find_all('p', class_='ocr_par'):
-                self.paragraphs.append(OCRResultParagraph(p))
-        else:
-            super().__init__()
+                paragraph = OCRResultParagraph()
+                paragraph.split_title_data(p)
+                self.paragraphs.append(paragraph)
 
         # Store box properties from box editor
         #self.properties = properties

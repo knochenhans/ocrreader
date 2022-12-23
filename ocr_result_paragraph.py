@@ -1,21 +1,25 @@
+from dataclasses import dataclass, field
+
+from bs4 import Tag
 from PySide6 import QtCore
 
 from hocr_data import HOCR_Data
 from ocr_result_line import OCRResultLine
 
 
+@dataclass
 class OCRResultParagraph(HOCR_Data):
-    def __init__(self, paragraph=None):
-        self.lines = []
+    lines: list[OCRResultLine] = field(default_factory=list)
 
+    def split_title_data(self, paragraph):
         if paragraph:
-            super().__init__(paragraph['title'])
+            self.title_data = paragraph['title']
+            super().split_title_data()
 
-            for line in paragraph.find_all('span', class_='ocr_line'):
-                self.lines.append(OCRResultLine(line))
-
-        else:
-            super().__init__()
+            for span in paragraph.find_all('span', class_='ocr_line'):
+                line = OCRResultLine()
+                line.split_title_data(span)
+                self.lines.append(line)
 
     def get_avg_height(self) -> int:
         sum_height = 0
@@ -49,4 +53,3 @@ class OCRResultParagraph(HOCR_Data):
         for l in range(line_count):
             line = OCRResultLine()
             line.read(file)
-

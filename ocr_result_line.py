@@ -1,20 +1,23 @@
+from dataclasses import dataclass, field
+
 from PySide6 import QtCore
 
 from hocr_data import HOCR_Data
 from ocr_result_word import OCRResultWord
 
 
+@dataclass
 class OCRResultLine(HOCR_Data):
-    def __init__(self, line=None):
-        self.x_size = 0.0
-        self.baseline = (0.0, 0)
-        self.words = []
+    x_size = 0.0
+    baseline = (0.0, 0)
+    words: list[OCRResultWord] = field(default_factory=list)
 
+    def split_title_data(self, line):
         if line:
-            title_data = line['title']
-            super().__init__(title_data)
+            self.title_data = line['title']
+            super().split_title_data()
 
-            data_lines = title_data.split('; ')
+            data_lines = self.title_data.split('; ')
 
             for data_line in data_lines:
                 tokens = data_line.split(' ')
@@ -24,10 +27,10 @@ class OCRResultLine(HOCR_Data):
                 elif tokens[0] == 'baseline':
                     self.baseline = (float(tokens[1]), int(tokens[2]))
 
-            for word in line.find_all('span', class_='ocrx_word'):
-                self.words.append(OCRResultWord(word))
-        else:
-            super().__init__()
+            for span in line.find_all('span', class_='ocrx_word'):
+                word = OCRResultWord()
+                word.split_title_data(span)
+                self.words.append(word)
 
     def translate(self, distance: QtCore.QPoint):
         '''Translate coordinates by a distance'''
@@ -36,7 +39,7 @@ class OCRResultLine(HOCR_Data):
 
         for word in self.words:
             word.translate(distance)
-        
+
     def write(self, file: QtCore.QDataStream):
         file.writeQVariant(self.bbox)
         file.writeFloat(self.x_size)

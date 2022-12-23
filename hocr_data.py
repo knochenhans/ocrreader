@@ -1,13 +1,17 @@
 from abc import abstractmethod
+from dataclasses import dataclass
+
 from PySide6 import QtCore
 
 
+@dataclass
 class HOCR_Data():
-    def __init__(self, title_data: str = '') -> None:
-        self.bbox = QtCore.QRect()
+    title_data: str = ''
+    bbox: QtCore.QRect = QtCore.QRect()
 
-        if title_data:
-            data_lines = title_data.split('; ')
+    def split_title_data(self):
+        if self.title_data:
+            data_lines = self.title_data.split('; ')
 
             for data_line in data_lines:
                 tokens = data_line.split(' ')

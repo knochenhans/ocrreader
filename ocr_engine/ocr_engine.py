@@ -55,7 +55,9 @@ class OCREngine():
 
         for div in soup.find_all('div', class_='ocr_carea'):
             if isinstance(div, Tag):
-                blocks.append(OCRResultBlock(image_size, px_per_mm, block=div, language=language))
+                block = OCRResultBlock(image_size=image_size, px_per_mm=px_per_mm, language=language)
+                block.split_title_data(div)
+                blocks.append(block)
 
         # Add safety margin sometimes needed for correct recognition
         margin = 5

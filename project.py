@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import ntpath
 
 from iso639 import Lang
@@ -7,14 +8,16 @@ from PySide6 import QtCore, QtGui
 from box_editor.box_data import BoxData
 
 
+@dataclass
 class Page():
-    def __init__(self, image_path: str = '', name: str = '', paper_size: str = ''):
-        self.image_path = image_path
-        self.name = name
-        #self.blocks = []
-        self.box_datas = []
+    image_path: str = ''
+    name: str = ''
+    #self.blocks = []
+    box_datas: list[BoxData] = field(default_factory=list)
+    paper_size: str = ''
 
-        self.set_paper_size(paper_size)
+    def __post_init__(self):
+        self.set_paper_size(self.paper_size)
 
     def set_paper_size(self, paper_size):
         self.paper_size = paper_size
@@ -58,18 +61,18 @@ class Page():
         self.box_datas.clear()
 
 
+@dataclass
 class Project():
-    def __init__(self, name='', default_language: Lang = Lang('English'), default_paper_size: str = 'a4'):
-        self.name = name
-        self.default_language = default_language
-        self.default_paper_size = default_paper_size
-        self.current_page_idx = 0
-        self.pages: list[Page] = []
-        self.header_y = 0.0
-        self.footer_y = 0.0
+    name: str = ''
+    default_language: Lang = Lang('English')
+    default_paper_size: str = 'a4'
+    current_page_idx: int = 0
+    pages: list[Page] = field(default_factory=list)
+    header_y: float = 0.0
+    footer_y: float = 0.0
 
-        # Save format revision for loading
-        self.format_revision = 4
+    # Save format revision for loading
+    format_revision = 4
 
     # def add_page(self, image_path: str, paper_size: str = SIZES['a4']) -> None:
     #     self.pages.append(Page(image_path, ntpath.basename(image_path), paper_size))

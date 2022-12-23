@@ -315,7 +315,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 image_filenames.append(filename)
 
             for image_filename in image_filenames:
-                page = Page(image_filename, ntpath.basename(filename), self.project.default_paper_size)
+                page = Page(image_path=image_filename, name=ntpath.basename(filename), paper_size=self.project.default_paper_size)
                 self.project.add_page(page)
                 self.page_icon_view.load_page(page)
                 pages.append(page)

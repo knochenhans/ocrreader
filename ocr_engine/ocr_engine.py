@@ -1,10 +1,11 @@
 import io
+from dataclasses import dataclass, field
 from math import sqrt
 
 import cv2
 import numpy
 import tesserocr as tesserocr
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui
@@ -13,11 +14,11 @@ from box_editor.box_editor_scene import Box
 from ocr_result_block import OCRResultBlock
 
 
+@dataclass
 class OCREngine():
-    def __init__(self, name: str):
-        self.name = name
-        self.languages = []
-        self.threadpool = QtCore.QThreadPool()
+    name: str = ''
+    languages: list[str] = field(default_factory=list)
+    threadpool: QtCore.QThreadPool = QtCore.QThreadPool()
 
     def pixmap_to_pil(self, pixmap: QtGui.QPixmap) -> Image.Image:
         '''Convert into PIL image format'''
@@ -50,7 +51,8 @@ class OCREngine():
         blocks = []
 
         for div in soup.find_all('div', class_='ocr_carea'):
-            blocks.append(OCRResultBlock(image_size, px_per_mm, block=div, language=language))
+            if isinstance(div, Tag):
+                blocks.append(OCRResultBlock(image_size, px_per_mm, block=div, language=language))
 
         # Add safety margin sometimes needed for correct recognition
         margin = 5

@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 
 import cv2
 import numpy
@@ -7,14 +8,13 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from box_editor.box_data import BOX_DATA_TYPE, BoxData
 
 
+@dataclass
 class BoxColor():
     '''Color properties to represent different box types'''
-
-    def __init__(self, brush: QtGui.QBrush = QtGui.QBrush(), pen: QtGui.QPen = QtGui.QPen(), brush_selected: QtGui.QBrush = QtGui.QBrush(), pen_selected: QtGui.QPen = QtGui.QPen()):
-        self.brush = brush
-        self.pen = pen
-        self.brush_selected = brush_selected
-        self.pen_selected = pen_selected
+    brush: QtGui.QBrush = QtGui.QBrush()
+    pen: QtGui.QPen = QtGui.QPen()
+    brush_selected: QtGui.QBrush = QtGui.QBrush()
+    pen_selected: QtGui.QPen = QtGui.QPen()
 
 
 class Box(QtWidgets.QGraphicsRectItem):

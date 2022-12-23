@@ -46,8 +46,8 @@ class OCR_Worker(QtCore.QRunnable):
 
 
 class OCREngineTesserocr(OCREngine):
-    def __init__(self):
-        super().__init__('TesserOCR')
+    name = 'TesserOCR'
+    def __post_init__(self):
         self.languages = tesserocr.get_languages()[1]
 
         self.result_blocks = []

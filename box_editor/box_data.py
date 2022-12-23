@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from iso639 import Lang
@@ -12,21 +13,22 @@ class BOX_DATA_TYPE(Enum):
     IMAGE = auto()
 
 
+@dataclass
 class BoxData():
-    def __init__(self, order=0, rect=QtCore.QRect(), type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT, text=QtGui.QTextDocument(), language: Lang = Lang('English'), ocr_result_block=OCRResultBlock(), tag: str = '', class_str: str = '', export_enabled: bool = True, words: list = None):
-        self.order = order
-        self.rect = rect
-        self.type = type
-        self.text = text
-        self.language = language
-        self.recognized = False
-        self.tag = tag
-        self.class_str = class_str
-        self.export_enabled = export_enabled
+    order: int = 0
+    rect: QtCore.QRect = QtCore.QRect()
+    type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT
+    text: QtGui.QTextDocument = QtGui.QTextDocument()
+    language: Lang = Lang('English')
+    ocr_result_block: OCRResultBlock = OCRResultBlock()
+    tag: str = ''
+    class_str: str = ''
+    export_enabled: bool = True
+    recognized: bool = False
 
-        self.ocr_result_block = ocr_result_block
-        self.words = words
+    words: list[OCRResultWord] = field(default_factory=list)
 
+    def __post_init__(self):
         if self.words == None:
             self.words = []
 

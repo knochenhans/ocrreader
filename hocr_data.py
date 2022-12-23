@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from PySide6 import QtCore
 
 
@@ -14,5 +15,6 @@ class HOCR_Data():
                 if tokens[0] == 'bbox':
                     self.bbox = QtCore.QRect(int(tokens[1]), int(tokens[2]), int(tokens[3]) - int(tokens[1]), int(tokens[4]) - int(tokens[2]))
 
+    @abstractmethod
     def translate(self, distance: QtCore.QPoint) -> None:
         pass

@@ -1,4 +1,5 @@
 import io
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from math import sqrt
 
@@ -38,9 +39,11 @@ class OCREngine():
     # def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
     #     return None
 
+    @abstractmethod
     def start_recognize_thread(self, callback, box: Box, px_per_mm: float, language: Lang = Lang('English'), raw=False):
         pass
 
+    @abstractmethod
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
         return None
 

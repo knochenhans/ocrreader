@@ -181,7 +181,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         # cursor = QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor)
         cursor = None
-        
+
         if math.isclose(event.pos().x(), self.rect().x(), rel_tol=0.01):
             self.left_touched = True
         if math.isclose(event.pos().x(), self.rect().x() + self.rect().width(), rel_tol=0.01):
@@ -222,7 +222,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
             rect = self.rect()
 
-            #TODO: right < left / bottom < top not possible
+            # TODO: right < left / bottom < top not possible
             if self.left_touched:
                 rect.setLeft(pos.x())
             if self.right_touched:
@@ -382,5 +382,3 @@ class Box(QtWidgets.QGraphicsRectItem):
     def set_type_to_image(self) -> None:
         self.properties.type = BOX_DATA_TYPE.IMAGE
         self.update()
-
-    

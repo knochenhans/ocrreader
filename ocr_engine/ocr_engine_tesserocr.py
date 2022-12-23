@@ -6,6 +6,8 @@ from PySide6 import QtCore, QtGui
 
 from ocr_engine.ocr_engine import OCREngine
 
+import debugpy
+
 
 class WorkerSignals(QtCore.QObject):
     finished = QtCore.Signal()
@@ -26,6 +28,7 @@ class OCR_Worker(QtCore.QRunnable):
 
     def run(self) -> None:
         # blocks = self.engine.recognize(self.image, self.px_per_mm, self.language, self.raw)
+        debugpy.debug_this_thread()
 
         blocks = []
 
@@ -47,6 +50,7 @@ class OCR_Worker(QtCore.QRunnable):
 
 class OCREngineTesserocr(OCREngine):
     name = 'TesserOCR'
+
     def __post_init__(self):
         self.languages = tesserocr.get_languages()[1]
 

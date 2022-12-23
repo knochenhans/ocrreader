@@ -76,7 +76,7 @@ class ExporterPreviewWindow(QtWidgets.QDialog):
 
         self.callback = callback
 
-        self.setGeometry(500, 500, 1000, 800)
+        self.resize(1000, 800)
 
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)

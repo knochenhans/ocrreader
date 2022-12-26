@@ -542,7 +542,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 # Commit current rubberband drag as new box and select
                 if not self.current_rect.isEmpty():
-                    self.add_box(self.current_rect.normalized()).setSelected(True)
+                    top_left = self.views()[0].mapToScene(self.current_rect.topLeft().toPoint())
+                    bottom_right = self.views()[0].mapToScene(self.current_rect.bottomRight().toPoint())
+
+                    self.add_box(QtCore.QRectF(top_left, bottom_right).normalized()).setSelected(True)
 
                 self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
         super().mouseReleaseEvent(event)

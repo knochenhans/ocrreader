@@ -3,14 +3,14 @@ from dataclasses import dataclass, field
 from PySide6 import QtCore
 
 from hocr_data import HOCR_Data
-from ocr_result_word import OCRResultWord
+from hocr_ocr_result_word import HOCR_OCRResultWord
 
 
 @dataclass
-class OCRResultLine(HOCR_Data):
+class HOCR_OCRResultLine(HOCR_Data):
     x_size = 0.0
     baseline = (0.0, 0)
-    words: list[OCRResultWord] = field(default_factory=list)
+    words: list[HOCR_OCRResultWord] = field(default_factory=list)
 
     def split_title_data(self, line):
         if line:
@@ -28,7 +28,7 @@ class OCRResultLine(HOCR_Data):
                     self.baseline = (float(tokens[1]), int(tokens[2]))
 
             for span in line.find_all('span', class_='ocrx_word'):
-                word = OCRResultWord()
+                word = HOCR_OCRResultWord()
                 word.split_title_data(span)
                 self.words.append(word)
 
@@ -62,6 +62,6 @@ class OCRResultLine(HOCR_Data):
         words_count = file.readInt16()
 
         for w in range(words_count):
-            word = OCRResultWord()
+            word = HOCR_OCRResultWord()
             word.read(file)
             self.words.append(word)

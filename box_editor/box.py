@@ -158,8 +158,8 @@ class Box(QtWidgets.QGraphicsRectItem):
 
             for word in self.properties.words:
                 if word.confidence < 90:
-                    painter.setBrush(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
-                    painter.drawRect(word.bbox.translated(self.rect().topLeft().toPoint()))
+                    painter.setBrush(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
+                    painter.drawRect(word.bbox_rect.translated(self.rect().topLeft().toPoint()))
 
         # Paragraphs
         if self.properties.ocr_result_block:
@@ -169,7 +169,7 @@ class Box(QtWidgets.QGraphicsRectItem):
                     for p, paragraph in enumerate(self.properties.ocr_result_block.paragraphs):
                         if p > 0:
                             painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.PenStyle.SolidLine))
-                            rect = paragraph.bbox.translated(self.rect().topLeft().toPoint())
+                            rect = paragraph.bbox_rect.translated(self.rect().topLeft().toPoint())
                             painter.drawLine(rect.topLeft(), rect.topRight())
 
     def hoverMoveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:

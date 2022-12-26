@@ -6,7 +6,7 @@ from hocr_data import HOCR_Data
 
 
 @dataclass
-class OCRResultWord(HOCR_Data):
+class HOCR_OCRResultWord(HOCR_Data):
     text = ''
     confidence = 0
 

@@ -5,20 +5,20 @@ from PySide6 import QtCore, QtGui
 
 from document_helper import DocumentHelper
 from hocr_data import HOCR_Data
-from ocr_result_paragraph import OCRResultParagraph
-from ocr_result_word import OCRResultWord
+from hocr_ocr_result_paragraph import HOCR_OCRResultParagraph
+from hocr_ocr_result_word import HOCR_OCRResultWord
 
 from bs4 import Tag
 
 
 @dataclass
-class OCRResultBlock(HOCR_Data):
+class HOCR_OCRResultBlock(HOCR_Data):
     image_size: QtCore.QSize = QtCore.QSize()
-    px_per_mm: float = 0.0
+    ppi: float = 0.0
     language: Lang = Lang('English')
     font: QtGui.QFont = QtGui.QFont()
     foreground_color = QtGui.QColorConstants.Svg.black
-    paragraphs: list[OCRResultParagraph] = field(default_factory=list)
+    paragraphs: list[HOCR_OCRResultParagraph] = field(default_factory=list)
 
     def __post_init__(self):
         self.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.GeneralFont)
@@ -29,7 +29,7 @@ class OCRResultBlock(HOCR_Data):
             super().split_title_data()
 
             for p in block.find_all('p', class_='ocr_par'):
-                paragraph = OCRResultParagraph()
+                paragraph = HOCR_OCRResultParagraph()
                 paragraph.split_title_data(p)
                 self.paragraphs.append(paragraph)
 
@@ -42,18 +42,18 @@ class OCRResultBlock(HOCR_Data):
             paragraph.write(file)
 
         file.writeQVariant(self.image_size)
-        file.writeFloat(self.px_per_mm)
+        file.writeFloat(self.ppi)
 
     def read(self, file: QtCore.QDataStream):
         paragraphs_count = file.readInt16()
         for p in range(paragraphs_count):
-            paragraph = OCRResultParagraph()
+            paragraph = HOCR_OCRResultParagraph()
             paragraph.read(file)
 
         self.image_size = file.readQVariant()
-        self.px_per_mm = file.readFloat()
+        self.ppi = file.readFloat()
 
-    def get_words(self) -> list[OCRResultWord]:
+    def get_words(self) -> list[HOCR_OCRResultWord]:
         '''Get list of words'''
         words = []
 
@@ -87,7 +87,7 @@ class OCRResultBlock(HOCR_Data):
                 # block_format.setBottomMargin(15.0)
                 cursor.setBlockFormat(block_format)
 
-                height = self.px_per_mm * paragraph.get_avg_height() * 3
+                height = self.ppi * paragraph.get_avg_height() * 3
 
                 format.setFont(self.font)
                 format.setFontPointSize(round(height))

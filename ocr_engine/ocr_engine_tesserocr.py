@@ -1,12 +1,13 @@
+import debugpy
 import tesserocr as tesserocr
 from box_editor.box_editor_scene import Box
+from hocr_ocr_result_block import HOCR_OCRResultBlock
 from iso639 import Lang
-from ocr_result_block import OCRResultBlock
 from PySide6 import QtCore, QtGui
 
 from ocr_engine.ocr_engine import OCREngine
-
-import debugpy
+from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
+                                    OCRResultParagraph, OCRResultWord)
 
 
 class WorkerSignals(QtCore.QObject):
@@ -15,32 +16,87 @@ class WorkerSignals(QtCore.QObject):
 
 
 class OCR_Worker(QtCore.QRunnable):
-    def __init__(self, engine, box: Box, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> None:
+    def __init__(self, engine, box: Box, ppi: float, language: Lang = Lang('English'), raw=False) -> None:
         super().__init__()
 
         self.engine = engine
         self.original_box = box
-        self.px_per_mm = px_per_mm
+        self.ppi = ppi
         self.language = language
         self.raw = raw
 
         self.signals = WorkerSignals()
 
     def run(self) -> None:
-        # blocks = self.engine.recognize(self.image, self.px_per_mm, self.language, self.raw)
+        # blocks = self.engine.recognize(self.image, self.ppi, self.language, self.raw)
         debugpy.debug_this_thread()
 
-        blocks = []
+        blocks: list[OCRResultBlock] = []
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO, lang=self.language.pt2t) as api:
             api.SetImage(self.engine.pixmap_to_pil(self.original_box.get_image()))
+            api.SetSourceResolution(self.ppi)
+            #  api.SetRectangle(37, 228, 548, 31)
             api.Recognize()
-            hocr = api.GetHOCRText(0)
 
-            blocks = self.engine.parse_hocr(hocr, self.original_box.get_image().size(), self.px_per_mm, self.language)
+            ri = api.GetIterator()
 
-            #TODO: SetSourceResolution
-            # TODO: SetRectangle (for multiple OCRs in one step)
+            current_block = None
+            current_paragraph = None
+            current_line = None
+
+            # for result_word in tesserocr.iterate_level(ri, tesserocr.RIL.SYMBOL):
+            #     pass
+
+            for result_word in tesserocr.iterate_level(ri, tesserocr.RIL.WORD):
+                if result_word.IsAtBeginningOf(tesserocr.RIL.BLOCK):
+                    current_block = OCRResultBlock()
+                    current_block.text = ri.GetUTF8Text(tesserocr.RIL.BLOCK)
+                    current_block.confidence = ri.Confidence(tesserocr.RIL.BLOCK)
+                    current_block.set_bbox(ri.BoundingBox(tesserocr.RIL.BLOCK))
+                    current_block.set_baseline(ri.Baseline(tesserocr.RIL.BLOCK))
+                    current_block.language = self.language
+                    blocks.append(current_block)
+
+                if result_word.IsAtBeginningOf(tesserocr.RIL.PARA):
+                    current_paragraph = OCRResultParagraph()
+                    current_paragraph.text = ri.GetUTF8Text(tesserocr.RIL.PARA)
+                    current_paragraph.confidence = ri.Confidence(tesserocr.RIL.PARA)
+                    current_paragraph.set_bbox(ri.BoundingBox(tesserocr.RIL.PARA))
+                    current_paragraph.set_baseline(ri.Baseline(tesserocr.RIL.PARA))
+                    if current_block:
+                        current_block.paragraphs.append(current_paragraph)
+
+                if result_word.IsAtBeginningOf(tesserocr.RIL.TEXTLINE):
+                    current_line = OCRResultLine()
+                    current_line.text = ri.GetUTF8Text(tesserocr.RIL.TEXTLINE)
+                    current_line.confidence = ri.Confidence(tesserocr.RIL.TEXTLINE)
+                    current_line.set_bbox(ri.BoundingBox(tesserocr.RIL.TEXTLINE))
+                    current_line.set_baseline(ri.Baseline(tesserocr.RIL.TEXTLINE))
+                    if current_paragraph:
+                        current_paragraph.lines.append(current_line)
+
+                if not result_word.Empty(tesserocr.RIL.WORD):
+                    current_word = OCRResultWord()
+                    current_word.text = result_word.GetUTF8Text(tesserocr.RIL.WORD)
+                    current_word.confidence = ri.Confidence(tesserocr.RIL.WORD)
+                    current_word.set_bbox(ri.BoundingBox(tesserocr.RIL.WORD))
+                    current_word.set_baseline(ri.Baseline(tesserocr.RIL.WORD))
+                    current_word.blanks_before = result_word.BlanksBeforeWord()
+                    row_attributes = ri.RowAttributes()
+                    # TODO: Not sure this is the right way, also check ascenders
+                    current_word.font_size = 1 / self.ppi * (row_attributes['row_height'] + row_attributes['descenders']) * 72
+                    if current_line:
+                        current_line.words.append(current_word)
+
+                # ci = r.GetChoiceIterator()
+                # for c in ci:
+                #     choice = c.GetUTF8Text()  # c == ci
+                # c.Confidence()
+                # hocr = api.GetHOCRText(0)
+
+            # blocks = self.engine.parse_hocr(hocr, self.original_box.get_image().size(), self.ppi, self.language)
+
             # TODO: GetTextlines (before recognition)
             # TODO: GetWords (before recognition)
 
@@ -63,8 +119,8 @@ class OCREngineTesserocr(OCREngine):
             rect.setBottom(to_footer)
         return image.copy(rect)
 
-    def start_recognize_thread(self, callback, box: Box, px_per_mm: float, language: Lang = Lang('English'), raw=False):
-        worker = OCR_Worker(self, box, px_per_mm, language, raw)
+    def start_recognize_thread(self, callback, box: Box, ppi: float, language: Lang = Lang('English'), raw=False):
+        worker = OCR_Worker(self, box, ppi, language, raw)
         worker.signals.result.connect(callback)
         # worker.signals.finished.connect(self.thread_complete)
 
@@ -76,7 +132,7 @@ class OCREngineTesserocr(OCREngine):
     # def thread_complete(self):
     #     pass
 
-    def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> list[OCRResultBlock] | None:
+    def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> list[HOCR_OCRResultBlock] | None:
         blocks = []
 
         # with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.SINGLE_BLOCK, lang=language.pt2t) as api:
@@ -84,13 +140,13 @@ class OCREngineTesserocr(OCREngine):
         #     api.Recognize()
         #     hocr = api.GetHOCRText(0)
 
-        #     blocks = self.parse_hocr(hocr, image.size(), px_per_mm, language)
+        #     blocks = self.parse_hocr(hocr, image.size(), ppi, language)
 
         return blocks
 
-    # def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
+    # def recognize(self, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
 
-    def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
+    def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[HOCR_OCRResultBlock] | None:
         blocks = []
 
         margin = 5
@@ -103,9 +159,9 @@ class OCREngineTesserocr(OCREngine):
                 image, bbox, block_id, paragraph_id = tess_block
 
                 block = OCRResultBlock()
-                block.bbox = QtCore.QRect(bbox['x'], bbox['y'] + from_header, bbox['w'], bbox['h'])
+                block.bbox_rect = QtCore.QRect(bbox['x'], bbox['y'] + from_header, bbox['w'], bbox['h'])
 
-                block = self.add_safety_margin(block, margin)
+                # block = self.add_safety_margin(block, margin)
 
                 blocks.append(block)
 

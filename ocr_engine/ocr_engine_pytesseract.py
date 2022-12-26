@@ -2,8 +2,8 @@ import cv2
 import numpy
 import pytesseract
 from iso639 import Lang
-from ocr_result_block import (OCRResultBlock, OCRResultLine,
-                              OCRResultParagraph, OCRResultWord)
+from hocr_ocr_result_block import (HOCR_OCRResultBlock, OCRResultLine,
+                              HOCR_OCRResultParagraph, HOCR_OCRResultWord)
 from PySide6 import QtCore, QtGui
 from sklearn.cluster import KMeans
 
@@ -41,7 +41,7 @@ class OCREnginePytesseract(OCREngine):
 
         return QtGui.QColor(r, g, b)
 
-    def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
+    def recognize(self, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[HOCR_OCRResultBlock] | None:
         # TODO: get dpi from boxarea background
         # image.save('/tmp/1.png')
         # estimate: str = pytesseract.image_to_boxes(self.pixmap_to_pil(image))
@@ -86,7 +86,7 @@ class OCREnginePytesseract(OCREngine):
 
         blocks = []
 
-        paragraph = OCRResultParagraph()
+        paragraph = HOCR_OCRResultParagraph()
 
         if raw:
             # Preprocess the image to find lines and scan line by line, maintaining whitespace
@@ -102,7 +102,7 @@ class OCREnginePytesseract(OCREngine):
 
                 # for line_str in lines:
                 if line_str:
-                    word = OCRResultWord()
+                    word = HOCR_OCRResultWord()
                     word.text = line_str
 
                     line = OCRResultLine()
@@ -110,7 +110,7 @@ class OCREnginePytesseract(OCREngine):
 
                     paragraph.lines.append(line)
 
-            block = OCRResultBlock(image_size=image.size(), px_per_mm=px_per_mm)
+            block = HOCR_OCRResultBlock(image_size=image.size(), ppi=ppi)
             block.font = QtGui.QFontDatabase().systemFont(QtGui.QFontDatabase().SystemFont.FixedFont)
             block.paragraphs.append(paragraph)
 
@@ -119,7 +119,7 @@ class OCREnginePytesseract(OCREngine):
             hocr = pytesseract.image_to_pdf_or_hocr(self.pixmap_to_pil(image), extension='hocr', lang=language.pt2t, config=f'--psm {psm_override}')
 
             if isinstance(hocr, bytes):
-                blocks = self.parse_hocr(hocr.decode(), image.size(), px_per_mm, language)
+                blocks = self.parse_hocr(hocr.decode(), image.size(), ppi, language)
 
                 # for block in blocks:
                 #     block.foreground_color = self.recognize_text_color(image.copy(block.bbox))

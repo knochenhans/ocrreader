@@ -6,13 +6,12 @@ from math import sqrt
 import cv2
 import numpy
 import tesserocr as tesserocr
-from bs4 import BeautifulSoup, Tag
 from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui
 
 from box_editor.box_editor_scene import Box
-from ocr_result_block import OCRResultBlock
+from ocr_engine.ocr_results import OCRResultBlock
 
 
 @dataclass
@@ -36,41 +35,41 @@ class OCREngine():
     # def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> str | None:
     #     return None
 
-    # def recognize(self, image: QtGui.QPixmap, px_per_mm: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
+    # def recognize(self, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False) -> list[OCRResultBlock] | None:
     #     return None
 
     @abstractmethod
-    def start_recognize_thread(self, callback, box: Box, px_per_mm: float, language: Lang = Lang('English'), raw=False):
+    def start_recognize_thread(self, callback, box: Box, ppi: float, language: Lang = Lang('English'), raw=False):
         pass
 
     @abstractmethod
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
         return None
 
-    def parse_hocr(self, hocr: str, image_size: QtCore.QSize, px_per_mm: float, language: Lang) -> list[OCRResultBlock]:
-        '''Parse box into result block'''
-        soup = BeautifulSoup(hocr, 'html.parser')
+    # def parse_hocr(self, hocr: str, image_size: QtCore.QSize, ppi: float, language: Lang) -> list[HOCR_OCRResultBlock]:
+    #     '''Parse box into result block'''
+    #     soup = BeautifulSoup(hocr, 'html.parser')
 
-        blocks = []
+    #     blocks = []
 
-        for div in soup.find_all('div', class_='ocr_carea'):
-            if isinstance(div, Tag):
-                block = OCRResultBlock(image_size=image_size, px_per_mm=px_per_mm, language=language)
-                block.split_title_data(div)
-                blocks.append(block)
+    #     for div in soup.find_all('div', class_='ocr_carea'):
+    #         if isinstance(div, Tag):
+    #             block = HOCR_OCRResultBlock(image_size=image_size, ppi=ppi, language=language)
+    #             block.split_title_data(div)
+    #             blocks.append(block)
 
-        # Add safety margin sometimes needed for correct recognition
-        margin = 5
+    #     # Add safety margin sometimes needed for correct recognition
+    #     margin = 5
 
-        for block in blocks:
-            block.bbox.adjust(-margin, -margin, margin, margin)
+    #     for block in blocks:
+    #         block.bbox.adjust(-margin, -margin, margin, margin)
 
-        return blocks
+    #     return blocks
 
     def add_safety_margin(self, block: OCRResultBlock, margin: int) -> OCRResultBlock:
         '''Add safety margin for better recognition'''
-        block.bbox.setTopLeft(block.bbox.translated(-margin, -margin).topLeft())
-        block.bbox.setBottomRight(block.bbox.translated(margin, margin).bottomRight())
+        block.bbox_rect.setTopLeft(block.bbox_rect.translated(-margin, -margin).topLeft())
+        block.bbox_rect.setBottomRight(block.bbox_rect.translated(margin, margin).bottomRight())
         return block
 
     def find_lines(self, image: QtGui.QPixmap) -> list:

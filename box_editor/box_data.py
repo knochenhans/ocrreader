@@ -4,8 +4,7 @@ from enum import Enum, auto
 from iso639 import Lang
 from PySide6 import QtCore, QtGui
 
-from ocr_result_block import OCRResultBlock
-from ocr_result_word import OCRResultWord
+from ocr_engine.ocr_results import OCRResultBlock, OCRResultWord
 
 
 class BOX_DATA_TYPE(Enum):
@@ -28,10 +27,6 @@ class BoxData():
 
     words: list[OCRResultWord] = field(default_factory=list)
 
-    def __post_init__(self):
-        if self.words == None:
-            self.words = []
-
     def write(self, file: QtCore.QDataStream) -> None:
         file.writeInt16(self.order)
         file.writeQVariant(self.rect)
@@ -45,9 +40,9 @@ class BoxData():
 
         self.ocr_result_block.write(file)
 
-        file.writeInt16(len(self.words))
-        for word in self.words:
-            word.write(file)
+        # file.writeInt16(len(self.words))
+        # for word in self.words:
+        #     word.write(file)
 
     def read(self, file: QtCore.QDataStream):
         self.order = file.readInt16()
@@ -70,7 +65,7 @@ class BoxData():
 
         word_count = file.readInt16()
 
-        for w in range(word_count):
-            word = OCRResultWord()
-            word.read(file)
-            self.words.append(word)
+        # for w in range(word_count):
+        #     word = HOCR_OCRResultWord()
+        #     word.read(file)
+        #     self.words.append(word)

@@ -1,11 +1,12 @@
 from enum import Enum, auto
 
 from iso639 import Lang
+from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
+                                    OCRResultParagraph, OCRResultWord)
 from odf import style
 from odf import text as odftext
 from odf.opendocument import OpenDocumentText
 from odf.text import P
-from ocr_result_block import OCRResultBlock
 from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -322,11 +323,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
-        engine.start_recognize_thread(self.new_ocr_results, box, self.current_page.px_per_mm, box.properties.language, raw)
+        engine.start_recognize_thread(self.new_ocr_results, box, self.current_page.ppi, box.properties.language, raw)
 
-    def new_ocr_results(self, result):
+    def new_ocr_results(self, result: tuple[list[OCRResultBlock], bool, Box]):
         blocks, raw, original_box = result
-        
+
         is_image = False
         remove_hyphens = False
 
@@ -334,19 +335,22 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         if original_box.properties.language == Lang('German'):
             remove_hyphens = True
 
+        #TODO: Set in options
+        confidence_treshold = 30
+
         if isinstance(blocks, list):
             if raw:
                 original_box.properties.ocr_result_block = blocks[0]
-                original_box.properties.text = blocks[0].get_text(False)
+                original_box.properties.text = blocks[0].get_document(False)
                 original_box.properties.recognized = True
             else:
                 if len(blocks) == 1:
                     block = blocks[0]
 
-                    if block.get_avg_confidence() > 30:
+                    if block.confidence > confidence_treshold:
                         original_box.properties.ocr_result_block = block
-                        original_box.properties.words = block.get_words()
-                        original_box.properties.text = block.get_text(True, remove_hyphens)
+                        # original_box.properties.words = block.get_words()
+                        original_box.properties.text = block.get_document(True, remove_hyphens)
                         original_box.properties.recognized = True
                     else:
                         is_image = True
@@ -363,10 +367,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     for block in blocks:
                         # Skip blocks with bad confidence (might be an image)
                         # TODO: Find a good threshold
-                        if block.get_avg_confidence() > 30:
+                        if block.confidence > confidence_treshold:
 
                             # Add new blocks at the recognized positions and adjust child elements
-                            new_box = self.add_box(QtCore.QRectF(block.bbox.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
+                            new_box = self.add_box(QtCore.QRectF(block.bbox_rect.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
                             dist = original_box.rect().topLeft() - new_box.rect().topLeft()
                             new_box.properties.ocr_result_block = block
 
@@ -374,7 +378,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                             new_box.properties.ocr_result_block.translate(dist.toPoint())
 
                             new_box.properties.words = new_box.properties.ocr_result_block.get_words()
-                            new_box.properties.text = new_box.properties.ocr_result_block.get_text(True, remove_hyphens)
+                            new_box.properties.text = new_box.properties.ocr_result_block.get_document(True, remove_hyphens)
 
                             new_box.properties.recognized = True
                             new_box.update()
@@ -662,13 +666,13 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         if self.footer_item:
             to_footer = self.footer_item.rect().top()
 
-        ocr_result_blocks = self.engine_manager.get_current_engine().analyse_layout(self.image, int(from_header), int(to_footer))
+        ocr_result_blocks: list[OCRResultBlock] = self.engine_manager.get_current_engine().analyse_layout(self.image, int(from_header), int(to_footer))
 
         if ocr_result_blocks:
             added_boxes = 0
 
             for ocr_result_block in ocr_result_blocks:
-                new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox.topLeft(), ocr_result_block.bbox.bottomRight()), added_boxes)
+                new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight()), added_boxes)
                 new_box.properties.ocr_result_block = ocr_result_block
                 new_box.update()
 

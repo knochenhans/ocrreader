@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import ntpath
 
 from iso639 import Lang
-from papersize import SIZES
+from papersize import SIZES, parse_length
 from PySide6 import QtCore, QtGui
 
 from box_editor.box_data import BoxData
@@ -22,22 +22,22 @@ class Page():
     def set_paper_size(self, paper_size):
         self.paper_size = paper_size
         if paper_size:
-            self.px_per_mm = self.calc_px_per_mm(SIZES[paper_size])
+            self.ppi = self.calc_density(SIZES[paper_size])
         else:
-            self.px_per_mm = 0.0
+            # Let's assume 300 ppi as a fallback value for now
+            self.ppi = 300.0
 
-    def calc_px_per_mm(self, paper_size: str) -> float:
-        # TODO: Lets assume 1:1 pixel ratio for now, so ignore height
-        width_mm = int(paper_size.split(' x ')[0].split('mm')[0])
-        # height_mm = int(paper_size.split(' x ')[1].split('mm')[0])
+    def calc_density(self, paper_size: str) -> float:
+        # TODO: Let's assume 1:1 pixel ratio for now, so ignore width
+        height_in = int(parse_length(paper_size.split(' x ')[1], 'in'))
 
-        return width_mm / QtGui.QImage(self.image_path).size().width()
+        return QtGui.QImage(self.image_path).size().height() / height_in
 
     def write(self, file: QtCore.QDataStream):
         file.writeString(self.image_path)
         file.writeString(self.name)
         file.writeString(self.paper_size)
-        file.writeFloat(self.px_per_mm)
+        file.writeFloat(self.ppi)
 
         file.writeInt16(len(self.box_datas))
 
@@ -48,7 +48,7 @@ class Page():
         self.image_path = file.readString()
         self.name = file.readString()
         self.paper_size = file.readString()
-        self.px_per_mm = file.readFloat()
+        self.ppi = file.readFloat()
 
         box_datas_count = file.readInt16()
 

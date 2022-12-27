@@ -66,12 +66,6 @@ class OCREngine():
 
     #     return blocks
 
-    def add_safety_margin(self, block: OCRResultBlock, margin: int) -> OCRResultBlock:
-        '''Add safety margin for better recognition'''
-        block.bbox_rect.setTopLeft(block.bbox_rect.translated(-margin, -margin).topLeft())
-        block.bbox_rect.setBottomRight(block.bbox_rect.translated(margin, margin).bottomRight())
-        return block
-
     def find_lines(self, image: QtGui.QPixmap) -> list:
         lines = []
 

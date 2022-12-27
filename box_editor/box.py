@@ -152,14 +152,17 @@ class Box(QtWidgets.QGraphicsRectItem):
         else:
             self.recognized_widget.hide()
 
+        #TODO: Set in options
+        confidence_threshold = 90
+
         # Update word confidence visualisation
         if self.properties.words:
             painter.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
 
             for word in self.properties.words:
-                if word.confidence < 90:
+                if word.confidence < confidence_threshold:
                     painter.setBrush(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
-                    painter.drawRect(word.bbox_rect.translated(self.rect().topLeft().toPoint()))
+                    painter.drawRect(word.bbox_rect)
 
         # Paragraphs
         if self.properties.ocr_result_block:
@@ -169,8 +172,7 @@ class Box(QtWidgets.QGraphicsRectItem):
                     for p, paragraph in enumerate(self.properties.ocr_result_block.paragraphs):
                         if p > 0:
                             painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 150), 0, QtCore.Qt.PenStyle.SolidLine))
-                            rect = paragraph.bbox_rect.translated(self.rect().topLeft().toPoint())
-                            painter.drawLine(rect.topLeft(), rect.topRight())
+                            painter.drawLine(paragraph.bbox_rect.topLeft(), paragraph.bbox_rect.topRight())
 
     def hoverMoveEvent(self, event: QtWidgets.QGraphicsSceneHoverEvent) -> None:
         '''Show size grips at the box' margin'''

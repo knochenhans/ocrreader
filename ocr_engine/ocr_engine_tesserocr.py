@@ -1,10 +1,10 @@
 import debugpy
 import tesserocr as tesserocr
-from box_editor.box_editor_scene import Box
-from hocr_ocr_result_block import HOCR_OCRResultBlock
 from iso639 import Lang
 from PySide6 import QtCore, QtGui
 
+from box_editor.box_editor_scene import Box
+from hocr_ocr_result_block import HOCR_OCRResultBlock
 from ocr_engine.ocr_engine import OCREngine
 from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
                                     OCRResultParagraph, OCRResultWord)
@@ -16,7 +16,7 @@ class WorkerSignals(QtCore.QObject):
 
 
 class OCR_Worker(QtCore.QRunnable):
-    def __init__(self, engine, box: Box, ppi: float, language: Lang = Lang('English'), raw=False) -> None:
+    def __init__(self, engine, box: Box, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False) -> None:
         super().__init__()
 
         self.engine = engine
@@ -24,6 +24,7 @@ class OCR_Worker(QtCore.QRunnable):
         self.ppi = ppi
         self.language = language
         self.raw = raw
+        self.image = image
 
         self.signals = WorkerSignals()
 
@@ -34,9 +35,9 @@ class OCR_Worker(QtCore.QRunnable):
         blocks: list[OCRResultBlock] = []
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO, lang=self.language.pt2t) as api:
-            api.SetImage(self.engine.pixmap_to_pil(self.original_box.get_image()))
+            api.SetImage(self.engine.pixmap_to_pil(self.image))
             api.SetSourceResolution(self.ppi)
-            #  api.SetRectangle(37, 228, 548, 31)
+            api.SetRectangle(self.original_box.rect().left(), self.original_box.rect().top(), self.original_box.rect().width(), self.original_box.rect().height())
             api.Recognize()
 
             ri = api.GetIterator()
@@ -95,8 +96,6 @@ class OCR_Worker(QtCore.QRunnable):
                 # c.Confidence()
                 # hocr = api.GetHOCRText(0)
 
-            # blocks = self.engine.parse_hocr(hocr, self.original_box.get_image().size(), self.ppi, self.language)
-
             # TODO: GetTextlines (before recognition)
             # TODO: GetWords (before recognition)
 
@@ -119,8 +118,8 @@ class OCREngineTesserocr(OCREngine):
             rect.setBottom(to_footer)
         return image.copy(rect)
 
-    def start_recognize_thread(self, callback, box: Box, ppi: float, language: Lang = Lang('English'), raw=False):
-        worker = OCR_Worker(self, box, ppi, language, raw)
+    def start_recognize_thread(self, callback, box: Box, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False):
+        worker = OCR_Worker(self, box, image, ppi, language, raw)
         worker.signals.result.connect(callback)
         # worker.signals.finished.connect(self.thread_complete)
 
@@ -148,8 +147,6 @@ class OCREngineTesserocr(OCREngine):
 
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[HOCR_OCRResultBlock] | None:
         blocks = []
-
-        margin = 5
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO_ONLY) as api:
             api.SetImage(self.pixmap_to_pil(self.pixmap_strip_header_footer(image, from_header, to_footer)))

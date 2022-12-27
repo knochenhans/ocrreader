@@ -323,7 +323,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
-        engine.start_recognize_thread(self.new_ocr_results, box, self.current_page.ppi, box.properties.language, raw)
+        engine.start_recognize_thread(self.new_ocr_results, box, self.image, self.current_page.ppi, box.properties.language, raw)
 
     def new_ocr_results(self, result: tuple[list[OCRResultBlock], bool, Box]):
         blocks, raw, original_box = result
@@ -369,13 +369,17 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         # TODO: Find a good threshold
                         if block.confidence > confidence_treshold:
 
+                            # Add safety margin for correct recognition
+                            block.add_margin(5)
+
                             # Add new blocks at the recognized positions and adjust child elements
-                            new_box = self.add_box(QtCore.QRectF(block.bbox_rect.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
-                            dist = original_box.rect().topLeft() - new_box.rect().topLeft()
+                            # new_box = self.add_box(QtCore.QRectF(block.bbox_rect.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
+                            new_box = self.add_box(QtCore.QRectF(block.bbox_rect), original_box.properties.order + added_boxes)
+                            # dist = original_box.rect().topLeft() - new_box.rect().topLeft()
                             new_box.properties.ocr_result_block = block
 
                             # Move paragraph lines and word boxes accordingly
-                            new_box.properties.ocr_result_block.translate(dist.toPoint())
+                            # new_box.properties.ocr_result_block.translate(dist.toPoint())
 
                             new_box.properties.words = new_box.properties.ocr_result_block.get_words()
                             new_box.properties.text = new_box.properties.ocr_result_block.get_document(True, remove_hyphens)

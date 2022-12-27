@@ -134,10 +134,13 @@ class OCRResultBlock(OCRResult):
 
         return font_sizes_sum / len(words)
 
-    def translate(self, distance: QtCore.QPoint):
+    def translate(self, distance: QtCore.QPoint) -> None:
         '''Translate coordinates by a distance (ignore block itself)'''
 
         # self.bbox.translated(distance)
 
         for paragraph in self.paragraphs:
             paragraph.translate(distance)
+
+    def add_margin(self, margin: int) -> None:
+        self.bbox_rect.adjust(-margin, -margin, margin, margin)

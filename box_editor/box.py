@@ -157,12 +157,13 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         # Update word confidence visualisation
         if self.properties.words:
-            painter.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
-
             for word in self.properties.words:
                 if word.confidence < confidence_threshold:
-                    painter.setBrush(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
-                    painter.drawRect(word.bbox_rect)
+                    painter.setPen(QtGui.QPen(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200), 2, QtCore.Qt.PenStyle.DotLine))
+                    #painter.setBrush(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
+                    painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+                    adjust_by = 2
+                    painter.drawRect(word.bbox_rect.adjusted(-adjust_by, -adjust_by, adjust_by, adjust_by))
 
         # Paragraphs
         if self.properties.ocr_result_block:

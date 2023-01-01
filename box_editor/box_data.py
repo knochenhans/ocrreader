@@ -62,10 +62,3 @@ class BoxData():
 
         self.ocr_result_block = OCRResultBlock()
         self.ocr_result_block.read(file)
-
-        word_count = file.readInt16()
-
-        # for w in range(word_count):
-        #     word = HOCR_OCRResultWord()
-        #     word.read(file)
-        #     self.words.append(word)

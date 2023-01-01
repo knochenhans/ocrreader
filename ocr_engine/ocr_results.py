@@ -25,6 +25,20 @@ class OCRResult():
     def translate(self, distance: QtCore.QPoint) -> None:
         pass
 
+    def write(self, file: QtCore.QDataStream):
+        file.writeQVariant(self.bbox_rect)
+        file.writeString(self.text)
+        file.writeFloat(self.confidence)
+        file.writeQVariant(self.baseline)
+        file.writeFloat(self.font_size)
+
+    def read(self, file: QtCore.QDataStream):
+        self.bbox_rect = file.readQVariant()
+        self.text = file.readString()
+        self.confidence = file.readFloat()
+        self.baseline = file.readQVariant()
+        self.font_size = file.readFloat()
+
 
 @dataclass
 class OCRResultWord(OCRResult):
@@ -34,6 +48,14 @@ class OCRResultWord(OCRResult):
         '''Translate coordinates by a distance'''
 
         self.bbox = self.bbox_rect.translated(distance)
+
+    def write(self, file: QtCore.QDataStream):
+        super().write(file)
+        file.writeInt16(self.blanks_before)
+
+    def read(self, file: QtCore.QDataStream):
+        super().read(file)
+        self.blanks_before = file.readInt16()
 
 
 @dataclass
@@ -48,6 +70,22 @@ class OCRResultLine(OCRResult):
         for word in self.words:
             word.translate(distance)
 
+    def write(self, file: QtCore.QDataStream):
+        super().write(file)
+        file.writeInt16(len(self.words))
+
+        for word in self.words:
+            word.write(file)
+
+    def read(self, file: QtCore.QDataStream):
+        super().read(file)
+        word_count = file.readInt16()
+
+        for w in range(word_count):
+            word = OCRResultWord()
+            word.read(file)
+            self.words.append(word)
+
 
 @dataclass
 class OCRResultParagraph(OCRResult):
@@ -60,6 +98,22 @@ class OCRResultParagraph(OCRResult):
 
         for line in self.lines:
             line.translate(distance)
+
+    def write(self, file: QtCore.QDataStream):
+        super().write(file)
+        file.writeInt16(len(self.lines))
+
+        for line in self.lines:
+            line.write(file)
+
+    def read(self, file: QtCore.QDataStream):
+        super().read(file)
+        line_count = file.readInt16()
+
+        for l in range(line_count):
+            line = OCRResultLine()
+            line.read(file)
+            self.lines.append(line)
 
 
 @dataclass
@@ -112,6 +166,26 @@ class OCRResultBlock(OCRResult):
 
         # TODO: Better to clone here?
         return document
+
+    def write(self, file: QtCore.QDataStream) -> None:
+        file.writeInt16(len(self.paragraphs))
+
+        for paragraph in self.paragraphs:
+            paragraph.write(file)
+
+        # file.writeQVariant(self.image_size)
+        # file.writeFloat(self.ppi)
+
+    def read(self, file: QtCore.QDataStream):
+        paragraphs_count = file.readInt16()
+
+        for p in range(paragraphs_count):
+            paragraph = OCRResultParagraph()
+            paragraph.read(file)
+            self.paragraphs.append(paragraph)
+
+        # self.image_size = file.readQVariant()
+        # self.ppi = file.readFloat()
 
     def get_words(self) -> list[OCRResultWord]:
         '''Get list of words'''

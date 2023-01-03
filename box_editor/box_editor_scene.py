@@ -619,7 +619,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                                     box.set_type_to_text()
                             case QtCore.Qt.Key.Key_R:
                                 for box in boxes:
-                                    box.recognize_text()
+                                    if box.properties.type != BOX_DATA_TYPE.IMAGE:
+                                        box.recognize_text()
                                     # TODO: Move to thread
                                     QtCore.QCoreApplication.instance().processEvents()
                             case QtCore.Qt.Key.Key_D:

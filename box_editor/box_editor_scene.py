@@ -195,6 +195,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 # Set color for rubberbox to resemble actual box (very limited though)
                 self.views()[0].setStyleSheet('selection-background-color: rgb(0, 0, 255)')
 
+                # Disable item selection while drawing
                 for item in self.items():
                     item.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
             case BOX_EDITOR_SCENE_STATE.HAND:
@@ -279,6 +280,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         if self.current_page:
             self.current_page.box_datas.append(self.current_box.properties)
         self.current_box.properties.order = order
+        self.current_box.properties.type = self.current_box_type
 
         self.addItem(self.current_box)
 

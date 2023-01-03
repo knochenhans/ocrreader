@@ -1,14 +1,15 @@
 import math
+
 import debugpy
 import tesserocr as tesserocr
 from iso639 import Lang
 from PySide6 import QtCore, QtGui
 
 from box_editor.box_editor_scene import Box
-from hocr_ocr_result_block import HOCR_OCRResultBlock
 from ocr_engine.ocr_engine import OCREngine
-from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
-                                    OCRResultParagraph, OCRResultWord)
+from ocr_engine.ocr_results import (OCR_RESULT_BLOCK_TYPE, OCRResultBlock,
+                                    OCRResultLine, OCRResultParagraph,
+                                    OCRResultWord)
 
 
 class WorkerSignals(QtCore.QObject):
@@ -138,23 +139,53 @@ class OCREngineTesserocr(OCREngine):
 
         return blocks
 
-    # def recognize(self, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
-
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
         blocks = []
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO_ONLY) as api:
             api.SetImage(self.pixmap_to_pil(self.pixmap_strip_header_footer(image, from_header, to_footer)))
-            tess_blocks = api.GetComponentImages(tesserocr.RIL.BLOCK, True)
+            api.SetPageSegMode(tesserocr.PSM.AUTO_ONLY)
+            page_it = api.AnalyseLayout()
 
-            for tess_block in tess_blocks:
-                image, bbox, block_id, paragraph_id = tess_block
+            if page_it:
+                for result in tesserocr.iterate_level(page_it, tesserocr.RIL.BLOCK):
+                    block = OCRResultBlock(tesserocr.RIL.BLOCK)
 
-                block = OCRResultBlock()
-                block.bbox_rect = QtCore.QRect(bbox['x'], bbox['y'] + from_header, bbox['w'], bbox['h'])
+                    left, top, right, bottom = result.BoundingBox(tesserocr.RIL.BLOCK, padding = 5)
 
-                # block = self.add_safety_margin(block, margin)
+                    block.bbox_rect = QtCore.QRect(QtCore.QPoint(left, top + from_header), QtCore.QPoint(right, bottom))
 
-                blocks.append(block)
+                    match result.BlockType():
+                        case tesserocr.PT.FLOWING_TEXT | tesserocr.PT.PULLOUT_TEXT:
+                            block.type = OCR_RESULT_BLOCK_TYPE.TEXT
+                        case tesserocr.PT.HEADING_TEXT:
+                            block.tag = 'h1'
+                        case tesserocr.PT.CAPTION_TEXT:
+                            block.tag = 'figcaption'
+                        case tesserocr.PT.FLOWING_IMAGE | tesserocr.PT.HEADING_IMAGE | tesserocr.PT.PULLOUT_IMAGE:
+                            block.type = OCR_RESULT_BLOCK_TYPE.IMAGE
+                        case tesserocr.PT.HORZ_LINE:
+                            block.type = OCR_RESULT_BLOCK_TYPE.H_LINE
+                        case tesserocr.PT.VERT_LINE:
+                            block.type = OCR_RESULT_BLOCK_TYPE.V_LINE
+                        case _:
+                            block.type = OCR_RESULT_BLOCK_TYPE.UNKNOWN
+
+                    match result.BlockType():
+                        case tesserocr.PT.FLOWING_TEXT | tesserocr.PT.FLOWING_IMAGE:
+                            block.class_ = 'flowing'
+                        case tesserocr.PT.HEADING_TEXT | tesserocr.PT.HEADING_IMAGE:
+                            block.class_ = 'heading'
+                        case tesserocr.PT.PULLOUT_TEXT | tesserocr.PT.PULLOUT_IMAGE:
+                            block.class_ = 'pullout'
+
+                    # TODO:
+                    #  EQUATION
+                    #  INLINE_EQUATION
+                    #  TABLE
+                    #  VERTICAL_TEXT
+                    #  NOISE
+
+                    blocks.append(block)
 
         return blocks

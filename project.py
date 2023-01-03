@@ -73,7 +73,7 @@ class Project():
     remove_hyphens = False
 
     # Save format revision for loading
-    format_revision = 6
+    format_revision = 7
 
     # def add_page(self, image_path: str, paper_size: str = SIZES['a4']) -> None:
     #     self.pages.append(Page(image_path, ntpath.basename(image_path), paper_size))
@@ -92,7 +92,7 @@ class Project():
         file.writeInt16(self.current_page_idx)
         file.writeFloat(self.header_y)
         file.writeFloat(self.footer_y)
-        file.writeFloat(self.remove_hyphens)
+        file.writeBool(self.remove_hyphens)
 
         file.writeInt16(len(self.pages))
         for page in self.pages:

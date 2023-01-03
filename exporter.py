@@ -291,8 +291,8 @@ class ExporterEPUB(Exporter):
             if not box_data.tag:
                 box_data.tag = 'div'
 
-            if box_data.class_str:
-                classes = f' class="{box_data.class_str}"'
+            if box_data.class_:
+                classes = f' class="{box_data.class_}"'
 
             text += f'<{box_data.tag + classes}>'
 

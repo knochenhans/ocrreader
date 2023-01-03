@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum, auto
 
 from iso639 import Lang
 from PySide6 import QtCore, QtGui
@@ -116,10 +117,22 @@ class OCRResultParagraph(OCRResult):
             self.lines.append(line)
 
 
+# TODO: Unify this with BOX_DATA_TYPE
+class OCR_RESULT_BLOCK_TYPE(Enum):
+    UNKNOWN = auto()
+    TEXT = auto()
+    IMAGE = auto()
+    H_LINE = auto()
+    V_LINE = auto()
+
+
 @dataclass
 class OCRResultBlock(OCRResult):
     paragraphs: list[OCRResultParagraph] = field(default_factory=list)
     language: Lang = Lang('en')
+    type: OCR_RESULT_BLOCK_TYPE = OCR_RESULT_BLOCK_TYPE.TEXT
+    tag: str = ''
+    class_: str = ''
 
     def get_document(self, diagnostics: bool = False, remove_hyphens=True) -> QtGui.QTextDocument:
         '''Get text as QTextDocument'''
@@ -173,8 +186,10 @@ class OCRResultBlock(OCRResult):
         for paragraph in self.paragraphs:
             paragraph.write(file)
 
-        # file.writeQVariant(self.image_size)
-        # file.writeFloat(self.ppi)
+        file.writeString(self.language.name)
+        file.writeInt16(self.type.value)
+        file.writeString(self.tag)
+        file.writeString(self.class_)
 
     def read(self, file: QtCore.QDataStream):
         paragraphs_count = file.readInt16()
@@ -184,8 +199,10 @@ class OCRResultBlock(OCRResult):
             paragraph.read(file)
             self.paragraphs.append(paragraph)
 
-        # self.image_size = file.readQVariant()
-        # self.ppi = file.readFloat()
+        self.language = Lang(file.readString())
+        self.type = OCR_RESULT_BLOCK_TYPE(file.readInt16())
+        self.tag = file.readString()
+        self.class_ = file.readString()
 
     def get_words(self) -> list[OCRResultWord]:
         '''Get list of words'''

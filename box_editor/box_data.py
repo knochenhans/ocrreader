@@ -21,7 +21,7 @@ class BoxData():
     language: Lang = Lang('English')
     ocr_result_block: OCRResultBlock = OCRResultBlock()
     tag: str = ''
-    class_str: str = ''
+    class_: str = ''
     export_enabled: bool = True
     recognized: bool = False
 
@@ -35,7 +35,7 @@ class BoxData():
         file.writeString(self.language.name)
         file.writeBool(self.recognized)
         file.writeString(self.tag)
-        file.writeString(self.class_str)
+        file.writeString(self.class_)
         file.writeBool(self.export_enabled)
 
         self.ocr_result_block.write(file)
@@ -57,7 +57,7 @@ class BoxData():
         self.language = Lang(file.readString())
         self.recognized = file.readBool()
         self.tag = file.readString()
-        self.class_str = file.readString()
+        self.class_ = file.readString()
         self.export_enabled = file.readBool()
 
         self.ocr_result_block = OCRResultBlock()

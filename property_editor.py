@@ -121,9 +121,9 @@ class BoxPage(QtWidgets.QWidget):
 
         layout.addWidget(QtWidgets.QLabel(self.tr('Class(es)', 'classes')), 3, 0)
 
-        self.class_str_edit = QtWidgets.QLineEdit(self)
-        self.class_str_edit.setPlaceholderText('For EPUB/HTML export, multiple can be separated by space, e.g. "small caption"')
-        layout.addWidget(self.class_str_edit, 3, 1)
+        self.class_edit = QtWidgets.QLineEdit(self)
+        self.class_edit.setPlaceholderText('For EPUB/HTML export, multiple can be separated by space, e.g. "small caption"')
+        layout.addWidget(self.class_edit, 3, 1)
 
         self.reset()
 
@@ -139,8 +139,8 @@ class BoxPage(QtWidgets.QWidget):
         self.tag_edit.setText(box_datas.tag)
         self.tag_edit.update()
 
-        self.class_str_edit.setText(box_datas.class_str)
-        self.class_str_edit.update()
+        self.class_edit.setText(box_datas.class_)
+        self.class_edit.update()
 
     def reset(self) -> None:
         # Block textChanged signal to keep widget from getting focus on reset

@@ -1,13 +1,14 @@
 from enum import Enum, auto
 
 from iso639 import Lang
+from ocr_engine.ocr_results import (OCR_RESULT_BLOCK_TYPE, OCRResultBlock,
+                                    OCRResultLine, OCRResultParagraph,
+                                    OCRResultWord)
+from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box import BOX_DATA_TYPE, Box
 from box_editor.box_data import BoxData
-from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
-                                    OCRResultParagraph, OCRResultWord)
-from project import Page, Project
 
 
 class HEADER_FOOTER_ITEM_TYPE(Enum):
@@ -104,7 +105,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.selectionChanged.connect(self.update_property_editor)
         self.property_editor.box_widget.text_edit.editingFinished.connect(self.update_text)
         self.property_editor.box_widget.tag_edit.editingFinished.connect(self.update_tag)
-        self.property_editor.box_widget.class_str_edit.editingFinished.connect(self.update_class_str)
+        self.property_editor.box_widget.class__edit.editingFinished.connect(self.update_class_)
         self.property_editor.box_widget.language_combo.currentTextChanged.connect(self.update_language)
 
         # Current editor state
@@ -233,9 +234,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         for item in self.selectedItems():
             item.properties.tag = self.property_editor.box_widget.tag_edit.text()
 
-    def update_class_str(self) -> None:
+    def update_class_(self) -> None:
         for item in self.selectedItems():
-            item.properties.class_str = self.property_editor.box_widget.class_str_edit.text()
+            item.properties.class_ = self.property_editor.box_widget.class__edit.text()
 
     def update_language(self, text) -> None:
         for item in self.selectedItems():
@@ -335,65 +336,66 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         confidence_treshold = 30
 
         if isinstance(blocks, list):
-            if raw:
-                original_box.properties.ocr_result_block = blocks[0]
-                original_box.properties.text = blocks[0].get_document(False)
-                original_box.properties.recognized = True
-            else:
-                if len(blocks) == 1:
-                    block = blocks[0]
-
-                    if block.confidence > confidence_treshold:
-                        original_box.properties.ocr_result_block = block
-                        # original_box.properties.words = block.get_words()
-                        original_box.properties.text = block.get_document(True, remove_hyphens)
-                        original_box.properties.recognized = True
-                    else:
-                        is_image = True
-                elif len(blocks) > 1:
-                    new_boxes = []
-
-                    # Multiple text blocks have been recognized within the selection, replace original box with new boxes
-
-                    # Remove original box
-                    self.remove_box(original_box)
-
-                    added_boxes = 0
-
-                    for block in blocks:
-                        # Skip blocks with bad confidence (might be an image)
-                        # TODO: Find a good threshold
-                        if block.confidence > confidence_treshold:
-
-                            # Add safety margin for correct recognition
-                            block.add_margin(5)
-
-                            # Add new blocks at the recognized positions and adjust child elements
-                            # new_box = self.add_box(QtCore.QRectF(block.bbox_rect.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
-                            new_box = self.add_box(QtCore.QRectF(block.bbox_rect), original_box.properties.order + added_boxes)
-                            # dist = original_box.rect().topLeft() - new_box.rect().topLeft()
-                            new_box.properties.ocr_result_block = block
-
-                            # Move paragraph lines and word boxes accordingly
-                            # new_box.properties.ocr_result_block.translate(dist.toPoint())
-
-                            new_box.properties.words = new_box.properties.ocr_result_block.get_words()
-                            new_box.properties.text = new_box.properties.ocr_result_block.get_document(True, remove_hyphens)
-
-                            new_box.properties.recognized = True
-                            new_box.update()
-
-                            self.current_box = None
-
-                            new_boxes.append(new_box)
-                            added_boxes += 1
-
-                    if added_boxes > 0:
-                        new_boxes[0].setSelected(True)
-                    else:
-                        is_image = True
+            if blocks:
+                if raw:
+                    original_box.properties.ocr_result_block = blocks[0]
+                    original_box.properties.text = blocks[0].get_document(False)
+                    original_box.properties.recognized = True
                 else:
-                    is_image = True
+                    if len(blocks) == 1:
+                        block = blocks[0]
+
+                        if block.confidence > confidence_treshold:
+                            original_box.properties.ocr_result_block = block
+                            # original_box.properties.words = block.get_words()
+                            original_box.properties.text = block.get_document(True, remove_hyphens)
+                            original_box.properties.recognized = True
+                        else:
+                            is_image = True
+                    elif len(blocks) > 1:
+                        new_boxes = []
+
+                        # Multiple text blocks have been recognized within the selection, replace original box with new boxes
+
+                        # Remove original box
+                        self.remove_box(original_box)
+
+                        added_boxes = 0
+
+                        for block in blocks:
+                            # Skip blocks with bad confidence (might be an image)
+                            # TODO: Find a good threshold
+                            if block.confidence > confidence_treshold:
+
+                                # Add safety margin for correct recognition
+                                block.add_margin(5)
+
+                                # Add new blocks at the recognized positions and adjust child elements
+                                # new_box = self.add_box(QtCore.QRectF(block.bbox_rect.translated(original_box.rect().topLeft().toPoint())), original_box.properties.order + added_boxes)
+                                new_box = self.add_box(QtCore.QRectF(block.bbox_rect), original_box.properties.order + added_boxes)
+                                # dist = original_box.rect().topLeft() - new_box.rect().topLeft()
+                                new_box.properties.ocr_result_block = block
+
+                                # Move paragraph lines and word boxes accordingly
+                                # new_box.properties.ocr_result_block.translate(dist.toPoint())
+
+                                new_box.properties.words = new_box.properties.ocr_result_block.get_words()
+                                new_box.properties.text = new_box.properties.ocr_result_block.get_document(True, remove_hyphens)
+
+                                new_box.properties.recognized = True
+                                new_box.update()
+
+                                self.current_box = None
+
+                                new_boxes.append(new_box)
+                                added_boxes += 1
+
+                        if added_boxes > 0:
+                            new_boxes[0].setSelected(True)
+                        else:
+                            is_image = True
+                    else:
+                        is_image = True
 
         if is_image:
             # The original box is probably an image
@@ -674,9 +676,22 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             added_boxes = 0
 
             for ocr_result_block in ocr_result_blocks:
-                new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight()), added_boxes)
-                new_box.properties.ocr_result_block = ocr_result_block
-                new_box.update()
+                if ocr_result_block.type == OCR_RESULT_BLOCK_TYPE.H_LINE or ocr_result_block.type == OCR_RESULT_BLOCK_TYPE.V_LINE:
+                    self.addItem(QtWidgets.QGraphicsLineItem(QtCore.QLine(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight())))
+                elif ocr_result_block.type != OCR_RESULT_BLOCK_TYPE.UNKNOWN:
+                    new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight()), added_boxes)
+                    new_box.properties.ocr_result_block = ocr_result_block
+
+                    match ocr_result_block.type:
+                        case OCR_RESULT_BLOCK_TYPE.TEXT:
+                            new_box.properties.type = BOX_DATA_TYPE.TEXT
+                        case OCR_RESULT_BLOCK_TYPE.IMAGE:
+                            new_box.properties.type = BOX_DATA_TYPE.IMAGE
+
+                    new_box.properties.tag = ocr_result_block.tag
+                    new_box.properties.class_ = ocr_result_block.class_
+
+                    new_box.update()
 
                 self.current_box = None
 
@@ -684,5 +699,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 # TODO: Move to thread
                 if instance := QtCore.QCoreApplication.instance():
                     instance.processEvents()
+
+        # Remove items fully contained by larger items
+        delete_items = []
+
+        for item in self.items():
+            if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):
+                delete_items.append(item)
+
+        for item in list(set(delete_items)):
+            self.removeItem(item)
 
         self.update_property_editor()

@@ -206,7 +206,7 @@ class OCRResultBlock(OCRResult):
         for word in words:
             font_sizes_sum += word.font_size
 
-        return font_sizes_sum / len(words)
+        return int(font_sizes_sum / len(words))
 
     def translate(self, distance: QtCore.QPoint) -> None:
         '''Translate coordinates by a distance (ignore block itself)'''

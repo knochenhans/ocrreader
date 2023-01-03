@@ -1,3 +1,4 @@
+import math
 import debugpy
 import tesserocr as tesserocr
 from iso639 import Lang
@@ -86,7 +87,8 @@ class OCR_Worker(QtCore.QRunnable):
                     current_word.blanks_before = result_word.BlanksBeforeWord()
                     row_attributes = ri.RowAttributes()
                     # TODO: Not sure this is the right way, also check ascenders
-                    current_word.font_size = 1 / self.ppi * (row_attributes['row_height'] + row_attributes['descenders']) * 72
+                    # current_word.font_size = 1 / self.ppi * (row_attributes['row_height'] + row_attributes['descenders']) * 72
+                    current_word.font_size = math.ceil(1 / self.ppi * row_attributes['row_height'] * 72)
                     if current_line:
                         current_line.words.append(current_word)
 

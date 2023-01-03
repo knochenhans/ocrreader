@@ -62,3 +62,29 @@ class BoxData():
 
         self.ocr_result_block = OCRResultBlock()
         self.ocr_result_block.read(file)
+
+    def get_paragraphs(self) -> list:
+        paragraphs = []
+
+        block = self.text.begin()
+
+        while block.isValid():
+            frag_it = next(block.begin())
+
+            while True:
+                fragments = []
+
+                for i in frag_it:
+                    fragments.append(i.fragment())
+                    next(i)
+
+                try:
+                    next(frag_it)
+                except (StopIteration):
+                    # End of paragraph detected
+                    paragraphs.append(fragments)
+                    break
+
+            block = block.next()
+
+        return paragraphs

@@ -13,7 +13,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from box_editor.box_data import BOX_DATA_TYPE
 from box_editor.box_editor_view import BoxEditorView
 from document_helper import DocumentHelper
-from exporter import ExporterEPUB, ExporterManager, ExporterPlainText
+from exporter import ExporterEPUB, ExporterManager, ExporterPlainText, ExporterODT
 from ocr_engine.ocr_engine import OCREngineManager
 from ocr_engine.ocr_engine_tesserocr import OCREngineTesserocr
 from pages_icon_view import PagesIconView
@@ -61,6 +61,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exporter_manager = ExporterManager()
         self.exporter_manager.add_exporter('EPUB', ExporterEPUB(self))
         self.exporter_manager.add_exporter('PlainText', ExporterPlainText(self))
+        self.exporter_manager.add_exporter('ODT', ExporterODT(self))
 
         QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor))
 
@@ -133,6 +134,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.export_epub_action.setStatusTip(self.tr('Export Project as EPUB', 'action_export_project_epub'))
         self.export_epub_action.triggered.connect(self.export_epub)
 
+        self.export_odt_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as ODT', 'action_export_project_odt'), self)
+        self.export_odt_action.setStatusTip(self.tr('Export Project as ODT', 'action_export_project_odt'))
+        self.export_odt_action.triggered.connect(self.export_odt)
+
         self.save_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/save-line.png'), self.tr('&Save Project', 'action_save_project'), self)
         self.save_project_action.setStatusTip(self.tr('Save Project', 'status_save_project'))
         self.save_project_action.triggered.connect(self.save_project)
@@ -187,6 +192,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.export_action)
         self.toolbar.addAction(self.export_txt_action)
         self.toolbar.addAction(self.export_epub_action)
+        self.toolbar.addAction(self.export_odt_action)
         self.toolbar.addAction(self.analyze_layout_action)
         self.toolbar.addAction(self.analyze_layout_and_recognize_action)
         self.toolbar.addAction(self.undo_action)
@@ -199,6 +205,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addAction(self.export_action)
         self.file_menu.addAction(self.export_txt_action)
         self.file_menu.addAction(self.export_epub_action)
+        self.file_menu.addAction(self.export_odt_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
 
@@ -432,13 +439,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # Exclude boxes in header or footer area
         self.box_editor.scene().disable_boxes_in_header_footer()
 
-        if exporter.open(self.temp_dir, self.project.name):
+        if exporter.open(self.temp_dir, self.project):
             for p, page in enumerate(self.project.pages):
-                if p > 0:
-                    exporter.new_page()
+                exporter.new_page(page, p + 1)
                 for box_data in page.box_datas:
                     if box_data.export_enabled:
-                        exporter.write_box(box_data, page, p)
+                        exporter.write_box(box_data)
 
             exporter.close()
 
@@ -452,26 +458,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_epub(self):
         self.run_exporter('EPUB')
 
-    # def export_odt(self):
-    #     # text = QtGui.QTextDocument()
-    #     # cursor = QtGui.QTextCursor(text)
-
-    #     boxes = self.scene().selectedItems()
-
-    #     textdoc = OpenDocumentText()
-
-    #     for b, box in enumerate(boxes):
-    #         # cursor.insertHtml(box.properties.ocr_result_block.get_text().toHtml())
-
-    #         # if b < (len(boxes) - 1):
-    #         # cursor.insertText('\n\n')
-
-    #         p = P(text=box.properties.ocr_result_block.get_text(self.project.default_paper_size).toPlainText())
-    #         textdoc.text.addElement(p)
-
-    #     textdoc.save('/tmp/headers.odt')
-
-    #     # print(text.toPlainText())
+    def export_odt(self):
+        self.run_exporter('ODT')
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():

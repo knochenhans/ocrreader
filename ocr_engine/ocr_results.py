@@ -153,12 +153,12 @@ class OCRResultBlock(OCRResult):
                         cursor.insertText(word.text)
                         format.clearBackground()
                         cursor.setCharFormat(format)
-                        # if w < (len(line.words) - 1):
-                        #     cursor.insertText(' ')
                     if l < (len(paragraph.lines) - 1):
-                        cursor.insertText('\n')
-                if p < (len(self.paragraphs) - 1):
-                    cursor.insertText('\n\n')
+                        # QChar::LineSeparator
+                        cursor.insertText('\u2028')
+            if p < (len(self.paragraphs) - 1):
+                # QChar::ParagraphSeparator
+                cursor.insertText('\u2029')
 
         if remove_hyphens:
             document_helper = DocumentHelper(document, self.language.pt1)

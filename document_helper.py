@@ -9,45 +9,65 @@ class DocumentHelper():
         self.document = document
         self.lang_code = lang_code
 
-    def break_document(self) -> list:
+    def break_document_into_fragments(self) -> list[list]:
         paragraphs = []
-
-        lines = []
-
+        
         block = self.document.begin()
 
         while block.isValid():
-
             line_fragments = []
 
-            # Iterate over fragments
-            # TODO: QTextBlock doesn’t offer Qt’s internal iterator facilities for some reason, use Python iterators
-            try:
-                frag_it = next(block.begin())
-            except (StopIteration):
-                # End of paragraph detected
-                paragraphs.append(lines)
+            #     # Iterate over fragments
+            #     # TODO: QTextBlock doesn’t offer Qt’s internal iterator facilities for some reason, use Python iterators
+            #     try:
+            #         frag_it = next(block.begin())
+            #     except (StopIteration):
+            #         # End of paragraph detected
+            #         paragraphs.append(lines)
+            #         lines = []
+            #     else:
+            #         if frag_it == block.end():
+            #             # End of paragraph detected
+            #             paragraphs.append(lines)
+            #             lines = []
+
+            #         for i in frag_it:
+            #             line_fragments.append(i.fragment())
+            #             # print(i.fragment().text())
+            #             # cursor.insertText()
+            #             next(i)
+
+            #         if line_fragments:
+            #             lines.append(line_fragments)
+
+            frag_it = next(block.begin())
+
+            while True:
                 lines = []
-            else:
+
                 for i in frag_it:
                     line_fragments.append(i.fragment())
                     # print(i.fragment().text())
-                    # cursor.insertText()
                     next(i)
 
-            if line_fragments:
-                lines.append(line_fragments)
+                try:
+                    next(frag_it)
+                except (StopIteration):
+                    # End of paragraph detected
+                    paragraphs.append(line_fragments)
+                    break
+
             block = block.next()
 
-        if lines:
-            paragraphs.append(lines)
+        # if lines:
+        #     paragraphs.append(lines)
 
         return paragraphs
 
     def remove_hyphens(self) -> QtGui.QTextDocument:
         dictionary = enchant.Dict(self.lang_code + '_' + self.lang_code.upper())
 
-        paragraphs = self.break_document()
+        paragraphs = self.break_document_into_fragments()
 
         new_document = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(new_document)

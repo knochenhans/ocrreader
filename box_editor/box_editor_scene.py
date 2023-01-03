@@ -1,17 +1,13 @@
 from enum import Enum, auto
 
 from iso639 import Lang
-from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
-                                    OCRResultParagraph, OCRResultWord)
-from odf import style
-from odf import text as odftext
-from odf.opendocument import OpenDocumentText
-from odf.text import P
-from project import Page, Project
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box import BOX_DATA_TYPE, Box
 from box_editor.box_data import BoxData
+from ocr_engine.ocr_results import (OCRResultBlock, OCRResultLine,
+                                    OCRResultParagraph, OCRResultWord)
+from project import Page, Project
 
 
 class HEADER_FOOTER_ITEM_TYPE(Enum):

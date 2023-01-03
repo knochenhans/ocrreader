@@ -30,7 +30,6 @@ class OCR_Worker(QtCore.QRunnable):
         self.signals = WorkerSignals()
 
     def run(self) -> None:
-        # blocks = self.engine.recognize(self.image, self.ppi, self.language, self.raw)
         debugpy.debug_this_thread()
 
         blocks: list[OCRResultBlock] = []
@@ -127,7 +126,7 @@ class OCREngineTesserocr(OCREngine):
     # def thread_complete(self):
     #     pass
 
-    def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> list[HOCR_OCRResultBlock] | None:
+    def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> list[OCRResultBlock] | None:
         blocks = []
 
         # with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.SINGLE_BLOCK, lang=language.pt2t) as api:
@@ -141,7 +140,7 @@ class OCREngineTesserocr(OCREngine):
 
     # def recognize(self, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False, psm_override=3) -> list[OCRResultBlock] | None:
 
-    def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[HOCR_OCRResultBlock] | None:
+    def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
         blocks = []
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO_ONLY) as api:

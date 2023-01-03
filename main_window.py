@@ -368,7 +368,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 # self.page_icon_view.setCurrentIndex(index)
                 # self.page_selected(index)
 
-                self.box_editor.load_page(project.pages[project.current_page_idx])
+                if project.current_page_idx:
+                    self.box_editor.load_page(project.pages[project.current_page_idx])
 
                 self.last_project_filename = project_filename
 

@@ -622,7 +622,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                                     if box.properties.type != BOX_DATA_TYPE.IMAGE:
                                         box.recognize_text()
                                     # TODO: Move to thread
-                                    QtCore.QCoreApplication.instance().processEvents()
+                                    if instance := QtCore.QCoreApplication.instance():
+                                        instance.processEvents()
                             case QtCore.Qt.Key.Key_D:
                                 for box in boxes:
                                     self.toggle_export_enabled(box)
@@ -681,6 +682,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
                 added_boxes += 1
                 # TODO: Move to thread
-                QtCore.QCoreApplication.instance().processEvents()
+                if instance := QtCore.QCoreApplication.instance():
+                    instance.processEvents()
 
         self.update_property_editor()

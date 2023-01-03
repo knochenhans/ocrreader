@@ -52,16 +52,26 @@ class ProjectPage(QtWidgets.QWidget):
 
         layout.addWidget(self.default_paper_size_combo, 2, 1)
 
+        layout.addWidget(QtWidgets.QLabel(self.tr('Remove hyphens', 'remove_hyphens')), 3, 0)
+
+        self.remove_hyphens_checkbox = QtWidgets.QCheckBox(self)
+        self.remove_hyphens_checkbox.stateChanged.connect(self.remove_hyphens_changed)
+
+        layout.addWidget(self.remove_hyphens_checkbox, 3, 1)
+
     def name_changed(self):
         self.project.name = self.name_edit.text()
 
-    def language_changed(self, language_text):
+    def language_changed(self, language_text: str):
         self.project.default_language = Lang(self.language_combo.currentText())
 
     def default_paper_size_changed(self, default_paper_size_index):
         if self.project.pages:
             paper_size = self.default_paper_size_combo.itemData(default_paper_size_index)
             self.project.default_paper_size = paper_size
+
+    def remove_hyphens_changed(self, state: int):
+        self.project.remove_hyphens = (state != 0)
 
 
 class PagePage(QtWidgets.QWidget):

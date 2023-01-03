@@ -70,9 +70,10 @@ class Project():
     pages: list[Page] = field(default_factory=list)
     header_y: float = 0.0
     footer_y: float = 0.0
+    remove_hyphens = False
 
     # Save format revision for loading
-    format_revision = 5
+    format_revision = 6
 
     # def add_page(self, image_path: str, paper_size: str = SIZES['a4']) -> None:
     #     self.pages.append(Page(image_path, ntpath.basename(image_path), paper_size))
@@ -91,6 +92,7 @@ class Project():
         file.writeInt16(self.current_page_idx)
         file.writeFloat(self.header_y)
         file.writeFloat(self.footer_y)
+        file.writeFloat(self.remove_hyphens)
 
         file.writeInt16(len(self.pages))
         for page in self.pages:
@@ -108,6 +110,7 @@ class Project():
         self.current_page_idx = file.readInt16()
         self.header_y = file.readFloat()
         self.footer_y = file.readFloat()
+        self.remove_hyphens = file.readBool()
 
         page_count = file.readInt16()
         for p in range(page_count):

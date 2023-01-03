@@ -333,9 +333,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         is_image = False
         remove_hyphens = False
 
-        # TODO: Implement an option for this
-        if original_box.properties.language == Lang('German'):
-            remove_hyphens = True
+        remove_hyphens = self.project.remove_hyphens
 
         #TODO: Set in options
         confidence_treshold = 30

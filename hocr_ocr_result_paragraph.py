@@ -21,13 +21,13 @@ class HOCR_OCRResultParagraph(HOCR_Data):
                 line.split_title_data(span)
                 self.lines.append(line)
 
-    def get_avg_height(self) -> int:
-        sum_height = 0
+    # def get_avg_height(self) -> int:
+    #     sum_height = 0
 
-        for line in self.lines:
-            sum_height += line.x_size
+    #     for line in self.lines:
+    #         sum_height += line.x_size
 
-        return round(sum_height / len(self.lines))
+    #     return round(sum_height / len(self.lines))
 
     def translate(self, distance: QtCore.QPoint):
         '''Translate coordinates by a distance'''

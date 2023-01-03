@@ -1,10 +1,10 @@
 import cv2
 import numpy
-from ocr_engine.ocr_engine import OCREngineManager
-from project import Project, Page
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from box_editor.box_editor_scene import HEADER_FOOTER_ITEM_TYPE, BoxEditorScene
+from ocr_engine.ocr_engine import OCREngineManager
+from project import Page, Project
 
 
 class BoxEditorView(QtWidgets.QGraphicsView):
@@ -57,7 +57,6 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         self.scene().current_box = None
 
         self.property_editor.box_widget.reset()
-        # self.property_editor.box_widget
 
         self.scene().setFocus()
 

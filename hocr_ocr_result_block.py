@@ -100,7 +100,7 @@ class HOCR_OCRResultBlock(HOCR_Data):
                     for w, word in enumerate(line.words):
                         if diagnostics:
                             if word.confidence < 90:
-                                format.setBackground(QtGui.QColor(255, 0, 0, (1 - (word.confidence / 100)) * 200))
+                                format.setBackground(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
                             cursor.setCharFormat(format)
 
                         cursor.insertText(word.text)

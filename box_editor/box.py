@@ -155,7 +155,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         #TODO: Set in options
         confidence_threshold = 90
 
-        # Update word confidence visualisation
+        # Word confidence visualisation
         if self.properties.words:
             for word in self.properties.words:
                 if word.confidence < confidence_threshold:

@@ -92,12 +92,6 @@ class OCR_Worker(QtCore.QRunnable):
                     if current_line:
                         current_line.words.append(current_word)
 
-                # ci = r.GetChoiceIterator()
-                # for c in ci:
-                #     choice = c.GetUTF8Text()  # c == ci
-                # c.Confidence()
-                # hocr = api.GetHOCRText(0)
-
             # TODO: GetTextlines (before recognition)
             # TODO: GetWords (before recognition)
 

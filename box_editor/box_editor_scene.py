@@ -112,7 +112,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.set_editor_state(self.editor_state)
 
         # Current box type for drawing boxes
-        self.current_box_type = BOX_DATA_TYPE.IMAGE
+        self.current_box_type = BOX_DATA_TYPE.TEXT
 
         # Variables for box renumbering
         self.renumber_line = None

@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass, field
 
 import debugpy
 import tesserocr as tesserocr
@@ -98,7 +99,7 @@ class OCR_Worker(QtCore.QRunnable):
         self.signals.result.emit([blocks, self.raw, self.original_box])
         self.signals.finished.emit()
 
-
+@dataclass
 class OCREngineTesserocr(OCREngine):
     name = 'TesserOCR'
 

@@ -13,7 +13,8 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from box_editor.box_data import BOX_DATA_TYPE
 from box_editor.box_editor_view import BoxEditorView
 from document_helper import DocumentHelper
-from exporter import ExporterEPUB, ExporterManager, ExporterPlainText, ExporterODT
+from exporter import (ExporterEPUB, ExporterManager, ExporterODT,
+                      ExporterPlainText)
 from ocr_engine.ocr_engine import OCREngineManager
 from ocr_engine.ocr_engine_tesserocr import OCREngineTesserocr
 from pages_icon_view import PagesIconView

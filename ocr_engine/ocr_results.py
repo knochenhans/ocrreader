@@ -140,8 +140,15 @@ class OCRResultBlock(OCRResult):
         cursor = QtGui.QTextCursor(document)
         format = QtGui.QTextCharFormat()
 
-        # TODO: Set this via options
-        diagnostics_threshold = 80.0
+        app_name = 'OCR Reader'
+
+        QtCore.QCoreApplication.setOrganizationName(app_name)
+        QtCore.QCoreApplication.setOrganizationDomain(app_name)
+        QtCore.QCoreApplication.setApplicationName(app_name)
+
+        settings = QtCore.QSettings()
+
+        diagnostics_threshold = int(settings.value('diagnostics_threshold', 80))
 
         for p, paragraph in enumerate(self.paragraphs):
             if paragraph.lines:

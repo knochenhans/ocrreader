@@ -22,13 +22,82 @@ from project import Page, Project
 from property_editor import PropertyEditor
 
 
+class Preferences_General(QtWidgets.QWidget):
+    def __init__(self, parent, settings: QtCore.QSettings) -> None:
+        super().__init__(parent)
+
+        self.name = self.tr('General', 'preferences_page_general')
+
+        layout = QtWidgets.QGridLayout(self)
+        self.setLayout(layout)
+
+        self.diagnostic_threshold_edit = QtWidgets.QLineEdit(str(settings.value('diagnostics_threshold', 80)))
+        self.diagnostic_threshold_edit.setValidator(QtGui.QIntValidator(0, 100, self))
+
+        layout.addWidget(QtWidgets.QLabel(self.tr('Diagnostics threshold', 'diagnostics_threshold')), 0, 0)
+        layout.addWidget(self.diagnostic_threshold_edit, 0, 1)
+
+
+class Preferences(QtWidgets.QDialog):
+    def __init__(self, parent, settings: QtCore.QSettings) -> None:
+        super().__init__(parent)
+
+        self.settings = settings
+
+        self.setWindowTitle(self.tr('Preferences', 'preferences'))
+
+        self.resize(800, 600)
+
+        stacked_widget = QtWidgets.QStackedWidget()
+        self.preferences_general = Preferences_General(self, self.settings)
+
+        pages_list = QtWidgets.QListWidget()
+        pages_list.insertItem(0, self.preferences_general.name)
+
+        stacked_widget.addWidget(self.preferences_general)
+
+        vbox_layout = QtWidgets.QVBoxLayout(self)
+        hbox_layout = QtWidgets.QHBoxLayout()
+
+        hbox_layout.addWidget(pages_list)
+        hbox_layout.addWidget(stacked_widget)
+        pages_list.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding))
+
+        vbox_layout.addLayout(hbox_layout)
+
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        vbox_layout.addWidget(buttons)
+
+    def accept(self) -> None:
+        self.settings.setValue('diagnostics_threshold', self.preferences_general.diagnostic_threshold_edit.text())
+
+        return super().accept()
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
-        # self.resize(1200, 800)
-        self.showMaximized()
-        self.setWindowTitle('PyOCR')
+        app_name = 'OCR Reader'
+
+        QtCore.QCoreApplication.setOrganizationName(app_name)
+        QtCore.QCoreApplication.setOrganizationDomain(app_name)
+        QtCore.QCoreApplication.setApplicationName(app_name)
+
+        self.settings = QtCore.QSettings()
+
+        geometry = self.settings.value('geometry')
+
+        if geometry:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1280, 800)
+
+        # self.restoreState(self.settings.value('windowState'))
+        self.setWindowTitle(app_name)
         self.setWindowIcon(QtGui.QIcon('resources/icons/character-recognition-line.png'))
         self.show()
 
@@ -183,6 +252,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.redo_action.setShortcut(QtGui.QKeySequence('Ctrl+y'))
         # self.redo_action.triggered.connect(self.redo)
 
+        self.preferences_action = QtGui.QAction(QtGui.QIcon('resources/icons/settings-3-line.png'), self.tr('&Preferences', 'action_preferences'), self)
+        self.preferences_action.setStatusTip(self.tr('Preferences', 'status_preferences'))
+        self.preferences_action.triggered.connect(self.open_preferences)
+        self.preferences_action.setShortcut(QtGui.QKeySequence('Ctrl+p'))
+        # self.redo_action.triggered.connect(self.redo)
+
         self.action_delete_selected_pages = QtGui.QAction(self.tr('Delete', 'delete_pages'), self)
 
         self.page_icon_view_context_menu.addAction(self.load_image_action)
@@ -210,6 +285,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
 
+        # Edit menu
+        self.edit_menu.addAction(self.preferences_action)
+        self.file_menu.addSeparator()
         self.edit_menu.addAction(self.undo_action)
         self.edit_menu.addAction(self.redo_action)
 
@@ -463,6 +541,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def export_odt(self):
         self.run_exporter('ODT')
 
+    def open_preferences(self):
+        options = Preferences(self, self.settings)
+
+        if options.exec():
+            return True
+        else:
+            return False
+
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -474,3 +560,9 @@ class MainWindow(QtWidgets.QMainWindow):
             for url in event.mimeData().urls():
                 # filenames.append(url.toLocalFile())
                 self.load_image(url.toLocalFile())
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self.settings.setValue('geometry', self.saveGeometry())
+        self.settings.setValue('windowState', self.saveState())
+
+        return super().closeEvent(event)

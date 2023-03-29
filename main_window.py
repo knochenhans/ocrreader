@@ -122,6 +122,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.page_icon_view_context_menu = QtWidgets.QMenu(self)
 
         self.setup_actions()
+        self.setup_toolbar()
+        self.setup_menus()
         self.setup_project()
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))
@@ -262,6 +264,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.page_icon_view_context_menu.addAction(self.load_image_action)
 
+    def setup_toolbar(self):
+        # Toolbar
         self.toolbar.addAction(self.load_image_action)
         self.toolbar.addAction(self.open_project_action)
         self.toolbar.addAction(self.save_project_action)
@@ -274,6 +278,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.undo_action)
         self.toolbar.addAction(self.redo_action)
 
+    def setup_menus(self):
+        # File menu
         self.file_menu.addAction(self.load_image_action)
         self.file_menu.addAction(self.open_project_action)
         self.file_menu.addAction(self.save_project_action)

@@ -84,7 +84,7 @@ class OCREnginePytesseract(OCREngine):
 
         # print(text)
 
-        blocks = []
+        blocks: list[HOCR_OCRResultBlock] = []
 
         paragraph = HOCR_OCRResultParagraph()
 

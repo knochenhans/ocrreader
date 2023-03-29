@@ -3,9 +3,9 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from math import sqrt
 
-import cv2
+import cv2  # type: ignore
 import numpy
-import tesserocr as tesserocr
+import tesserocr as tesserocr  # type: ignore
 from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui

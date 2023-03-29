@@ -55,7 +55,7 @@ class HOCR_OCRResultBlock(HOCR_Data):
 
     def get_words(self) -> list[HOCR_OCRResultWord]:
         '''Get list of words'''
-        words = []
+        words: list[HOCR_OCRResultWord] = []
 
         for p in self.paragraphs:
             for l in p.lines:

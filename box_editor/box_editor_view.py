@@ -86,7 +86,7 @@ class BoxEditorView(QtWidgets.QGraphicsView):
         return numpy.array(image.bits()).reshape((image.height(), image.width(), 4))
 
     def analyze_layout_cv(self, recognize=False) -> None:
-        new_boxes = []
+        new_boxes: list[Box] = []
         if self.scene().image:
             image = self.pixmap_to_cv2(self.scene().image)
 

@@ -1,7 +1,7 @@
 import re
 from string import punctuation
 
-import enchant
+import enchant  # type: ignore
 from iso639 import Lang
 from papersize import SIZES
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -31,7 +31,7 @@ class ProjectPage(QtWidgets.QWidget):
         self.project = project
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)
-        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
+        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed))
 
         self.name_edit = QtWidgets.QLineEdit(self)
         self.name_edit.setText(project.name)
@@ -81,7 +81,7 @@ class PagePage(QtWidgets.QWidget):
 
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)
-        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
+        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed))
 
         layout.addWidget(QtWidgets.QLabel(self.tr('Paper size', 'paper_size')), 0, 0)
 

@@ -64,7 +64,7 @@ class BoxData():
         self.ocr_result_block.read(file)
 
     def get_paragraphs(self) -> list:
-        paragraphs = []
+        paragraphs: list[list[QtGui.QTextFragment]] = []
 
         block = self.text.begin()
 
@@ -72,7 +72,7 @@ class BoxData():
             frag_it = next(block.begin())
 
             while True:
-                fragments = []
+                fragments: list[QtGui.QTextFragment] = []
 
                 for i in frag_it:
                     fragments.append(i.fragment())

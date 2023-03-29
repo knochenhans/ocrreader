@@ -10,7 +10,7 @@ class DocumentHelper():
         self.lang_code = lang_code
 
     def break_document_into_fragments(self) -> list[list]:
-        paragraphs = []
+        paragraphs: list[list] = []
         
         block = self.document.begin()
 

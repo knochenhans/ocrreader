@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 import debugpy
 import tesserocr as tesserocr
-from iso639 import Lang
+from iso639 import Lang  # type: ignore
 from PySide6 import QtCore, QtGui
 
 from box_editor.box_editor_scene import Box
@@ -106,7 +106,7 @@ class OCREngineTesserocr(OCREngine):
     def __post_init__(self):
         self.languages = tesserocr.get_languages()[1]
 
-        self.result_blocks = []
+        self.result_blocks: list[OCRResultBlock] = []
 
     def pixmap_strip_header_footer(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> QtGui.QPixmap:
         rect = image.rect()
@@ -129,7 +129,7 @@ class OCREngineTesserocr(OCREngine):
     #     pass
 
     def recognize_raw(self, image: QtGui.QPixmap, language: Lang = Lang('English')) -> list[OCRResultBlock] | None:
-        blocks = []
+        blocks: list[OCRResultBlock] = []
 
         # with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.SINGLE_BLOCK, lang=language.pt2t) as api:
         #     api.SetImage(self.pixmap_to_pil(image))
@@ -141,7 +141,7 @@ class OCREngineTesserocr(OCREngine):
         return blocks
 
     def analyse_layout(self, image: QtGui.QPixmap, from_header=0, to_footer=0) -> list[OCRResultBlock] | None:
-        blocks = []
+        blocks: list[OCRResultBlock] = []
 
         with tesserocr.PyTessBaseAPI(psm=tesserocr.PSM.AUTO_ONLY) as api:
             api.SetImage(self.pixmap_to_pil(self.pixmap_strip_header_footer(image, from_header, to_footer)))

@@ -4,9 +4,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from iso639 import Lang
-from papersize import SIZES
-from pdf2image import convert_from_path
+from iso639 import Lang  # type: ignore
+from papersize import SIZES  # type: ignore
+from pdf2image import convert_from_path  # type: ignore
 from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -86,15 +86,6 @@ class MainWindow(QtWidgets.QMainWindow):
         QtCore.QCoreApplication.setOrganizationName(app_name)
         QtCore.QCoreApplication.setOrganizationDomain(app_name)
         QtCore.QCoreApplication.setApplicationName(app_name)
-
-        self.settings = QtCore.QSettings()
-
-        geometry = self.settings.value('geometry')
-
-        if geometry:
-            self.restoreGeometry(geometry)
-        else:
-            self.resize(1280, 800)
 
         # self.restoreState(self.settings.value('windowState'))
         self.setWindowTitle(app_name)
@@ -293,7 +284,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Recent documents
         self.recent_docs_menu = QtWidgets.QMenu(self.tr('Recent Documents'), self)
 
-        self.recent_docs = []
+        self.recent_docs: list[QtGui.QAction] = []
 
         self.file_menu.addMenu(self.recent_docs_menu)
 
@@ -329,8 +320,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def open_recent_doc(self):
         # Get selected recent document and open it
-        file_path = self.sender().text()
-        self.load_image(file_path)
+        file_path: str = self.sender().text()
+        self.load_images([file_path])
 
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():
@@ -412,7 +403,7 @@ class MainWindow(QtWidgets.QMainWindow):
         filenames = QtWidgets.QFileDialog.getOpenFileNames(parent=self, caption=self.tr('Load Image or PDF', 'status_load_image'),
                                                            filter=self.tr('Image and PDF files (*.jpg *.jpeg *.png *.gif *.bmp *.ppm *.pdf)', 'filter_image_files'))
 
-        pages = []
+        pages: list[Page] = []
 
         for filename in filenames[0]:
             pages += self.load_image(filename)
@@ -423,10 +414,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.project_set_active()
 
-    def load_image(self, filename: str) -> list:
-        pages = []
+    def load_image(self, filename: str) -> list[Page]:
+        pages: list[Page] = []
         if filename:
-            image_filenames = []
+            image_filenames: list[str] = []
 
             if os.path.splitext(filename)[1] == '.pdf':
                 images = convert_from_path(filename, output_folder=self.temp_dir.name)
@@ -448,6 +439,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 pages.append(page)
 
                 self.statusBar().showMessage(self.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
+
+            # Add file path to recent documents menu
+            self.add_recent_doc(filename)
 
         if pages:
             self.project_set_active()
@@ -603,7 +597,31 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.load_image(url.toLocalFile())
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self.settings.setValue('geometry', self.saveGeometry())
-        self.settings.setValue('windowState', self.saveState())
-
+        self.save_settings()
         return super().closeEvent(event)
+
+    def save_settings(self) -> None:
+        self.settings.setValue('geometry', self.saveGeometry())
+
+        recent_docs: list[str] = []
+
+        for recent_doc in self.recent_docs:
+            recent_docs.append(recent_doc.text())
+
+        self.settings.setValue('recentDocs', recent_docs)
+
+    def load_settings(self) -> None:
+        self.settings = QtCore.QSettings()
+
+        geometry: QtCore.QByteArray = self.settings.value('geometry')
+
+        if geometry:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1280, 800)
+
+        recent_docs: list[str] = self.settings.value('recentDocs')
+
+        if recent_docs:
+            for recent_doc in recent_docs:
+                self.add_recent_doc(recent_doc)

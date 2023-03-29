@@ -1,6 +1,7 @@
 from enum import Enum, auto
+from typing import Union
 
-from iso639 import Lang
+from iso639 import Lang  # type: ignore
 from ocr_engine.ocr_results import (OCR_RESULT_BLOCK_TYPE, OCRResultBlock,
                                     OCRResultLine, OCRResultParagraph,
                                     OCRResultWord)
@@ -87,14 +88,14 @@ class BOX_EDITOR_SCENE_STATE(Enum):
 class BoxEditorScene(QtWidgets.QGraphicsScene):
     def __init__(self, parent, engine_manager, property_editor, project: Project, page: Page) -> None:
         super().__init__(parent)
-        self.current_box = None
+        self.current_box: Box | None = None
         self.current_rect = QtCore.QRectF()
-        self.header_item = None
-        self.footer_item = None
+        self.header_item: HeaderFooterItem | None = None
+        self.footer_item: HeaderFooterItem | None = None
 
         self.project = project
         self.current_page = page
-        self.image = QtGui.QPixmap()
+        self.image: QtGui.QPixmap | None = QtGui.QPixmap()
         # self.set_page_as_background(0)
         self.engine_manager = engine_manager
         self.box_counter = 0
@@ -127,7 +128,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def selectedItems(self) -> list[Box]:
         items = super().selectedItems()
 
-        boxes = []
+        boxes: list[Box] = []
 
         for item in items:
             if isinstance(item, Box):
@@ -137,7 +138,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def items(self, order=False) -> list[Box]:
         items = super().items()
 
-        items_boxes = []
+        items_boxes: list[Box] = []
 
         for item in items:
             if isinstance(item, Box):
@@ -353,7 +354,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         else:
                             is_image = True
                     elif len(blocks) > 1:
-                        new_boxes = []
+                        new_boxes: list[Box] = []
 
                         # Multiple text blocks have been recognized within the selection, replace original box with new boxes
 
@@ -651,7 +652,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.setSceneRect(self.image.rect())
         # self.project.current_page_idx = page_number
 
-    def drawBackground(self, painter, rect: QtCore.QRectF) -> None:
+    def drawBackground(self, painter, rect: Union[QtCore.QRectF, QtCore.QRect]) -> None:
         '''Draw background image for page'''
 
         if self.image:
@@ -701,7 +702,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     instance.processEvents()
 
         # Remove items fully contained by larger items
-        delete_items = []
+        delete_items: list[Box] = []
 
         for item in self.items():
             if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):

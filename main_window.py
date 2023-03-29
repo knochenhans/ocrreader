@@ -289,6 +289,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addAction(self.export_epub_action)
         self.file_menu.addAction(self.export_odt_action)
         self.file_menu.addSeparator()
+
+        # Recent documents
+        self.recent_docs_menu = QtWidgets.QMenu(self.tr('Recent Documents'), self)
+
+        self.recent_docs = []
+
+        self.file_menu.addMenu(self.recent_docs_menu)
+
         self.file_menu.addAction(self.exit_action)
 
         # Edit menu
@@ -296,6 +304,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addSeparator()
         self.edit_menu.addAction(self.undo_action)
         self.edit_menu.addAction(self.redo_action)
+
+    def add_recent_doc(self, file_path):
+        # Add new file path to top of list, remove the last one
+        action = QtGui.QAction(file_path)
+        action.triggered.connect(self.open_recent_doc)
+        self.recent_docs.insert(0, action)
+
+        # Remove any duplicates
+        unique_actions = []
+
+        for action in self.recent_docs:
+            if action.text() not in [a.text() for a in unique_actions]:
+                unique_actions.append(action)
+
+        self.recent_docs = unique_actions
+
+        if len(self.recent_docs) > 5:
+            self.recent_docs.pop()
+
+        # Update recent documents menu
+        self.recent_docs_menu.clear()
+        self.recent_docs_menu.addActions(self.recent_docs)
+
+    def open_recent_doc(self):
+        # Get selected recent document and open it
+        file_path = self.sender().text()
+        self.load_image(file_path)
 
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():

@@ -115,6 +115,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setup_actions()
         self.setup_toolbar()
         self.setup_menus()
+
+        self.load_settings()
+
         self.setup_project()
 
         self.statusBar().showMessage(self.tr('OCR Reader loaded', 'status_loaded'))

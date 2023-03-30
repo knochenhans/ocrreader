@@ -63,6 +63,10 @@ class BoxEditorView(QtWidgets.QGraphicsView):
     def scene(self):
         return self.custom_scene
 
+    def clear(self):
+        self.scene().clear()
+        self.setDisabled(True)
+
     def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         '''Handle zooming and scrolling by mouse'''
 

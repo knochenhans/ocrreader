@@ -387,13 +387,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.analyze_pages(recognize=True)
 
     def page_selected(self, index: QtCore.QModelIndex):
-        if self.box_editor.current_page == index.data(QtCore.Qt.UserRole):
-            return
+        page = index.data(QtCore.Qt.UserRole)
 
-        self.box_editor.load_page(index.data(QtCore.Qt.UserRole))
-        self.project.current_page_idx = self.page_icon_view.currentIndex().row()
-        self.box_editor.scene().update()
-        self.box_editor.setFocus()
+        if page:
+            if self.box_editor.current_page == page:
+                return
+
+            self.box_editor.load_page(page)
+            self.project.current_page_idx = self.page_icon_view.currentIndex().row()
+            self.box_editor.scene().update()
+            self.box_editor.setFocus()
+        else:
+            self.box_editor.clear()
 
     def project_set_active(self):
         self.export_action.setEnabled(True)
@@ -409,7 +414,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pages: list[Page] = []
 
         for filename in filenames[0]:
-            pages += self.load_image(filename)
+            pages += self.load_images([filename])
 
         if filenames[1]:
             # Load first page
@@ -417,39 +422,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.project_set_active()
 
-    def load_image(self, filename: str) -> list[Page]:
-        pages: list[Page] = []
-        if filename:
-            image_filenames: list[str] = []
+    def load_images(self, filenames: list[str]) -> list[Page]:
+        load_image_command = LoadImageCommand(self, filenames)
+        self.undo_stack.push(load_image_command)
 
-            if os.path.splitext(filename)[1] == '.pdf':
-                images = convert_from_path(filename, output_folder=self.temp_dir.name)
-
-                for image in images:
-                    image_png = Image.open(image.filename)
-                    image_png_filename = os.path.dirname(os.path.abspath(image.filename)) + '/' + Path(image.filename).stem + '.png'
-                    image_png.save(image_png_filename)
-                    os.remove(image.filename)
-                    image_filenames.append(image_png_filename)
-
-            else:
-                image_filenames.append(filename)
-
-            for image_filename in image_filenames:
-                page = Page(image_path=image_filename, name=ntpath.basename(filename), paper_size=self.project.default_paper_size)
-                self.project.add_page(page)
-                self.page_icon_view.load_page(page)
-                pages.append(page)
-
-                self.statusBar().showMessage(self.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
-
-            # Add file path to recent documents menu
-            self.add_recent_doc(filename)
-
-        if pages:
-            self.project_set_active()
-
-        return pages
+        return load_image_command.pages
 
     def open_project(self) -> None:
         project_filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
@@ -593,11 +570,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
-            # filenames = []
+            filenames = []
 
             for url in event.mimeData().urls():
-                # filenames.append(url.toLocalFile())
-                self.load_image(url.toLocalFile())
+                filenames.append(url.toLocalFile())
+                
+            self.load_images(filenames)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self.save_settings()
@@ -628,3 +606,53 @@ class MainWindow(QtWidgets.QMainWindow):
         if recent_docs:
             for recent_doc in recent_docs:
                 self.add_recent_doc(recent_doc)
+
+
+class LoadImageCommand(QtGui.QUndoCommand):
+    def __init__(self, main_window: MainWindow, filenames: list[str]):
+        super().__init__()
+        self.main_window = main_window
+        self.filenames: list[str] = filenames
+        self.pages: list[Page] = []
+
+    def redo(self) -> None:
+        pages: list[Page] = []
+
+        for filename in self.filenames:
+            if filename:
+                image_filenames: list[str] = []
+
+                # Split PDFs up into images and save them in an image folder
+                if os.path.splitext(filename)[1] == '.pdf':
+                    images = convert_from_path(filename, output_folder=self.main_window.temp_dir.name)
+
+                    for image in images:
+                        image_png = Image.open(image.filename)
+                        image_png_filename = os.path.dirname(os.path.abspath(image.filename)) + '/' + Path(image.filename).stem + '.png'
+                        image_png.save(image_png_filename)
+                        os.remove(image.filename)
+                        image_filenames.append(image_png_filename)
+
+                else:
+                    image_filenames.append(filename)
+
+                for image_filename in image_filenames:
+                    page = Page(image_path=image_filename, name=ntpath.basename(filename), paper_size=self.main_window.project.default_paper_size)
+                    self.main_window.project.add_page(page)
+                    self.main_window.page_icon_view.load_page(page)
+                    pages.append(page)
+
+                    self.main_window.statusBar().showMessage(self.main_window.tr('Image loaded', 'status_image_loaded') + ': ' + page.image_path)
+
+                # Add file path to recent documents menu
+                self.main_window.add_recent_doc(filename)
+
+        if pages:
+            self.main_window.project_set_active()
+
+        self.pages = pages
+
+    def undo(self) -> None:
+        for page in self.pages:
+            self.main_window.project.remove_page(page)
+            self.main_window.page_icon_view.remove_page(page)

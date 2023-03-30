@@ -173,6 +173,12 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             if isinstance(item, Box):
                 self.removeItem(item)
 
+    def clear(self):
+        super().clear()
+
+        self.image = None
+        self.setSceneRect(QtCore.QRect())
+
     def set_editor_state(self, new_state: BOX_EDITOR_SCENE_STATE) -> None:
         cursor = QtCore.Qt.CursorShape.ArrowCursor
 
@@ -274,21 +280,29 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def add_box(self, rect: QtCore.QRectF, order=-1) -> Box:
         '''Add new box and give it an order number'''
 
-        self.current_box = Box(rect, self.engine_manager, self)
-        if self.current_page:
-            self.current_page.box_datas.append(self.current_box.properties)
-        self.current_box.properties.order = order
-        self.current_box.properties.type = self.current_box_type
+        add_box_command = AddBoxCommand(self, rect, order)
+        self.undo_stack.push(add_box_command)
 
-        self.addItem(self.current_box)
+        return add_box_command.current_box
+
+    def add_box_(self, rect: QtCore.QRectF, order=-1) -> Box:
+        current_box = Box(rect, self.engine_manager, self)
+        if self.current_page:
+            self.current_page.box_datas.append(current_box.properties)
+        current_box.properties.order = order
+        current_box.properties.type = self.current_box_type
+
+        self.addItem(current_box)
 
         if order >= 0:
-            self.shift_ordering(self.current_box, 1)
+            self.shift_ordering(current_box, 1)
         else:
-            self.current_box.properties.order = self.box_counter
+            current_box.properties.order = self.box_counter
         self.box_counter += 1
 
-        return self.current_box
+        self.current_box = current_box
+
+        return current_box
 
     def restore_box(self, box_datas: BoxData) -> Box:
         '''Restore a box in the editor using box properties stored in the project'''
@@ -299,9 +313,15 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         return self.current_box
 
     def remove_box(self, box: Box) -> None:
+        remove_box_command = RemoveBoxCommand(self, box)
+        self.undo_stack.push(remove_box_command)
+
+    def remove_box_(self, box: Box) -> None:
         '''Remove a box from the editor window and project'''
         self.removeItem(box)
-        self.current_page.box_datas.remove(box.properties)
+
+        if self.current_page:
+            self.current_page.box_datas.remove(box.properties)
 
         # Renumber items
         self.box_counter = 0
@@ -712,3 +732,31 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             self.removeItem(item)
 
         self.update_property_editor()
+
+
+class AddBoxCommand(QtGui.QUndoCommand):
+    def __init__(self, box_editor_scene: BoxEditorScene, rect: QtCore.QRectF, order: int):
+        super().__init__()
+        self.box_editor_scene: BoxEditorScene = box_editor_scene
+        self.rect: QtCore.QRectF = rect
+        self.order: int = order
+        self.current_box: Box
+
+    def redo(self) -> None:
+        self.current_box = self.box_editor_scene.add_box_(self.rect, self.order)
+
+    def undo(self) -> None:
+        self.box_editor_scene.remove_box_(self.current_box)
+
+
+class RemoveBoxCommand(QtGui.QUndoCommand):
+    def __init__(self, box_editor_scene: BoxEditorScene, box: Box):
+        super().__init__()
+        self.box_editor_scene = box_editor_scene
+        self.box = box
+
+    def redo(self) -> None:
+        self.box_editor_scene.remove_box_(self.box)
+
+    def undo(self) -> None:
+        self.box_editor_scene.add_box_(self.box.rect())

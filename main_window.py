@@ -284,12 +284,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addAction(self.export_odt_action)
         self.file_menu.addSeparator()
 
-        # Recent documents
+        # Recent documents/projects
         self.recent_docs_menu = QtWidgets.QMenu(self.tr('Recent Documents'), self)
+        self.recent_projects_menu = QtWidgets.QMenu(self.tr('Recent Projects'), self)
 
         self.recent_docs: list[QtGui.QAction] = []
+        self.recent_projects: list[QtGui.QAction] = []
 
         self.file_menu.addMenu(self.recent_docs_menu)
+        self.file_menu.addMenu(self.recent_projects_menu)
 
         self.file_menu.addAction(self.exit_action)
 
@@ -299,7 +302,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.edit_menu.addAction(self.undo_action)
         self.edit_menu.addAction(self.redo_action)
 
-    def add_recent_doc(self, file_path):
+    def add_recent_doc(self, file_path: str):
         # Add new file path to top of list, remove the last one
         action = QtGui.QAction(file_path)
         action.triggered.connect(self.open_recent_doc)
@@ -325,6 +328,33 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get selected recent document and open it
         file_path: str = self.sender().text()
         self.load_images([file_path])
+
+    def add_recent_project(self, file_path: str):
+        # Add new file path to top of list, remove the last one
+        action = QtGui.QAction(file_path)
+        action.triggered.connect(self.open_recent_project)
+        self.recent_projects.insert(0, action)
+
+        # Remove any duplicates
+        unique_actions = []
+
+        for action in self.recent_projects:
+            if action.text() not in [a.text() for a in unique_actions]:
+                unique_actions.append(action)
+
+        self.recent_projects = unique_actions
+
+        if len(self.recent_projects) > 5:
+            self.recent_projects.pop()
+
+        # Update recent documents menu
+        self.recent_projects_menu.clear()
+        self.recent_projects_menu.addActions(self.recent_projects)
+
+    def open_recent_project(self):
+        # Get selected recent document and open it
+        file_path: str = self.sender().text()
+        self.open_project_file(file_path)
 
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():
@@ -428,57 +458,63 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return load_image_command.pages
 
+    def open_project_file(self, filename: str) -> None:
+        self.close_project()
+
+        project_file = QtCore.QFile(filename)
+        project_file.open(QtCore.QIODevice.OpenModeFlag.ReadOnly)
+        input = QtCore.QDataStream(project_file)
+
+        # Read project
+        project = Project()
+        try:
+            project.read(input)
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Error', str(e))
+            project_file.close()
+
+            self.setup_project()
+        else:
+            project_file.close()
+
+            self.setup_project(project)
+
+            # Reconstruct pages and page elements from project file
+            for page in project.pages:
+                self.page_icon_view.load_page(page)
+
+            # index = self.page_icon_view.model().index(self.project.current_page_idx, 0)
+
+            # self.page_icon_view.setCurrentIndex(index)
+            # self.page_selected(index)
+
+            if project.current_page_idx:
+                self.box_editor.load_page(project.pages[project.current_page_idx])
+
+            self.last_project_filename = filename
+
+            self.project_set_active()
+            self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + project_file.fileName())
+
+        # Add file path to recent projects menu
+        self.add_recent_project(filename)
+
     def open_project(self) -> None:
-        project_filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
-                                                                 filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption=self.tr('Open project file', 'dialog_open_project_file'),
+                                                         filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
 
-        if project_filename:
-            self.close_project()
-
-            project_file = QtCore.QFile(project_filename)
-            project_file.open(QtCore.QIODevice.ReadOnly)
-            input = QtCore.QDataStream(project_file)
-
-            # Read project
-            project = Project()
-            try:
-                project.read(input)
-            except Exception as e:
-                QtWidgets.QMessageBox.warning(self, 'Error', str(e))
-                project_file.close()
-
-                self.setup_project()
-            else:
-                project_file.close()
-
-                self.setup_project(project)
-
-                # Reconstruct pages and page elements from project file
-                for page in project.pages:
-                    self.page_icon_view.load_page(page)
-
-                # index = self.page_icon_view.model().index(self.project.current_page_idx, 0)
-
-                # self.page_icon_view.setCurrentIndex(index)
-                # self.page_selected(index)
-
-                if project.current_page_idx:
-                    self.box_editor.load_page(project.pages[project.current_page_idx])
-
-                self.last_project_filename = project_filename
-
-                self.project_set_active()
-                self.statusBar().showMessage(self.tr('Project opened', 'status_project_opened') + ': ' + project_file.fileName())
+        if filename:
+            self.open_project_file(filename)
 
     def save_project(self) -> None:
-        project_filename = self.last_project_filename
+        filename = self.last_project_filename
 
-        if not project_filename:
-            project_filename = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project', 'dialog_save_project'),
-                                                                     filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
+        if not filename:
+            filename = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project', 'dialog_save_project'),
+                                                             filter=self.tr('OCR Reader project (*.orp)', 'filter_ocr_reader_project'))[0]
 
-        if project_filename:
-            self.save_project_file(project_filename)
+        if filename:
+            self.save_project_file(filename)
 
     def save_project_as(self) -> None:
         project_file = QtWidgets.QFileDialog.getSaveFileName(parent=self, caption=self.tr('Save project as', 'dialog_save_project'),
@@ -515,6 +551,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage(self.tr('Save project', 'dialog_save_project') + ': ' + file.fileName())
         self.last_project_filename = filename
         self.last_project_directory = os.path.dirname(os.path.abspath(self.last_project_filename))
+
+        # Add file path to recent projects menu
+        self.add_recent_project(filename)
 
     def close_project(self) -> None:
         self.page_icon_view.close()
@@ -591,6 +630,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.settings.setValue('recentDocs', recent_docs)
 
+        recent_projects: list[str] = []
+
+        for recent_project in self.recent_projects:
+            recent_projects.append(recent_project.text())
+
+        self.settings.setValue('recentProjects', recent_projects)
+
     def load_settings(self) -> None:
         self.settings = QtCore.QSettings()
 
@@ -604,8 +650,14 @@ class MainWindow(QtWidgets.QMainWindow):
         recent_docs: list[str] = self.settings.value('recentDocs')
 
         if recent_docs:
-            for recent_doc in recent_docs:
+            for recent_doc in reversed(recent_docs):
                 self.add_recent_doc(recent_doc)
+
+        recent_projects: list[str] = self.settings.value('recentProjects')
+
+        if recent_projects:
+            for recent_project in reversed(recent_projects):
+                self.add_recent_project(recent_project)
 
 
 class LoadImageCommand(QtGui.QUndoCommand):

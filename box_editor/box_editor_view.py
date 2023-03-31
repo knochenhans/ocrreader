@@ -1,27 +1,29 @@
 import cv2
 import numpy
 from PySide6 import QtCore, QtGui, QtWidgets
+from box_editor.box import Box
 
 from box_editor.box_editor_scene import HEADER_FOOTER_ITEM_TYPE, BoxEditorScene
 from ocr_engine.ocr_engine import OCREngineManager
 from project import Page, Project
+from property_editor import PropertyEditor
 
 
 class BoxEditorView(QtWidgets.QGraphicsView):
-    def __init__(self, parent, undo_stack: QtGui.QUndoStack, engine_manager: OCREngineManager, property_editor, project: Project) -> None:
+    def __init__(self, parent, undo_stack: QtGui.QUndoStack, engine_manager: OCREngineManager, property_editor: PropertyEditor, project: Project) -> None:
         super().__init__(parent)
 
-        self.undo_stack = undo_stack
-        self.project = project
-        self.property_editor = property_editor
-        self.current_page = None
-        self.custom_scene = BoxEditorScene(self, engine_manager, self.property_editor, self.project, None)
+        self.undo_stack: QtGui.QUndoStack = undo_stack
+        self.project: Project = project
+        self.property_editor: PropertyEditor = property_editor
+        self.current_page: Page | None = None
+        self.custom_scene: BoxEditorScene = BoxEditorScene(self, undo_stack, engine_manager, self.property_editor, self.project, None)
         self.setScene(self.custom_scene)
         self.origin = QtCore.QPoint()
         self.current_scale = 1.0
 
-        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
-        self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.NoAnchor)
+        self.setRenderHints(QtGui.QPainter.RenderHint.Antialiasing | QtGui.QPainter.RenderHint.SmoothPixmapTransform | QtGui.QPainter.RenderHint.TextAntialiasing)
         self.setDisabled(True)
 
         # Enable so we get mouse move events

@@ -1,7 +1,8 @@
 from enum import Enum, auto
 from typing import Union
 
-from iso639 import Lang  # type: ignore
+from iso639 import Lang
+from ocr_engine.ocr_engine import OCREngineManager  # type: ignore
 from ocr_engine.ocr_results import (OCR_RESULT_BLOCK_TYPE, OCRResultBlock,
                                     OCRResultLine, OCRResultParagraph,
                                     OCRResultWord)
@@ -86,12 +87,14 @@ class BOX_EDITOR_SCENE_STATE(Enum):
 
 
 class BoxEditorScene(QtWidgets.QGraphicsScene):
-    def __init__(self, parent, engine_manager, property_editor, project: Project, page: Page) -> None:
+    def __init__(self, parent, undo_stack: QtGui.QUndoStack, engine_manager: OCREngineManager, property_editor, project: Project, page: Page | None) -> None:
         super().__init__(parent)
         self.current_box: Box | None = None
         self.current_rect = QtCore.QRectF()
         self.header_item: HeaderFooterItem | None = None
         self.footer_item: HeaderFooterItem | None = None
+
+        self.undo_stack = undo_stack
 
         self.project = project
         self.current_page = page
@@ -343,14 +346,13 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         '''Run OCR for box and update properties with recognized text in selection, create new boxes if suggested by tesseract'''
         engine = self.engine_manager.get_current_engine()
 
-        engine.start_recognize_thread(self.new_ocr_results, box, self.image, self.current_page.ppi, box.properties.language, raw)
+        if self.image and self.current_page:
+            engine.start_recognize_thread(self.new_ocr_results, box, self.image, self.current_page.ppi, box.properties.language, raw)
 
     def new_ocr_results(self, result: tuple[list[OCRResultBlock], bool, Box]):
         blocks, raw, original_box = result
 
         is_image = False
-        remove_hyphens = False
-
         remove_hyphens = self.project.remove_hyphens
 
         #TODO: Set in options
@@ -725,11 +727,13 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         delete_items: list[Box] = []
 
         for item in self.items():
-            if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):
-                delete_items.append(item)
+            if isinstance(item, Box):
+                if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):
+                    delete_items.append(item)
 
         for item in list(set(delete_items)):
-            self.removeItem(item)
+            if isinstance(item, Box):
+                self.removeItem(item)
 
         self.update_property_editor()
 

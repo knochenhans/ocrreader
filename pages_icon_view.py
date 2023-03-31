@@ -4,10 +4,10 @@ from project import Page, Project
 
 
 class StyledItemDelegate(QtWidgets.QStyledItemDelegate):
-    def initStyleOption(self, option, index) -> None:
+    def initStyleOption(self, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> None:
         super(StyledItemDelegate, self).initStyleOption(option, index)
-        option.decorationPosition = QtWidgets.QStyleOptionViewItem.Top
-        option.displayAlignment = QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom
+        option.decorationPosition = QtWidgets.QStyleOptionViewItem.Position.Top
+        option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignHCenter | QtCore.Qt.AlignmentFlag.AlignBottom
 
 
 class ItemImage(QtGui.QStandardItem):
@@ -17,9 +17,9 @@ class ItemImage(QtGui.QStandardItem):
         self.setEditable(False)
         self.setText(page.name)
 
-        image = QtGui.QImage(page.image_path).scaledToWidth(100, QtCore.Qt.SmoothTransformation)
-        self.setData(image, QtCore.Qt.DecorationRole)
-        self.setData(page, QtCore.Qt.UserRole)
+        image = QtGui.QImage(page.image_path).scaledToWidth(100, QtCore.Qt.TransformationMode.SmoothTransformation)
+        self.setData(image, QtCore.Qt.ItemDataRole.DecorationRole)
+        self.setData(page, QtCore.Qt.ItemDataRole.UserRole)
 
 
 class PagesListStore(QtGui.QStandardItemModel):
@@ -29,11 +29,11 @@ class PagesListStore(QtGui.QStandardItemModel):
     def add_page(self, page: Page) -> None:
         self.appendRow(ItemImage(page))
 
-    def flags(self, index) -> QtCore.Qt.ItemFlags:
+    def flags(self, index) -> QtCore.Qt.ItemFlag:
         default_flags = super().flags(index)
 
         if index.isValid():
-            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
+            return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsDragEnabled
 
         return default_flags
 

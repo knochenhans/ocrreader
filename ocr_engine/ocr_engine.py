@@ -10,7 +10,7 @@ from iso639 import Lang
 from PIL import Image
 from PySide6 import QtCore, QtGui
 
-from box_editor.box_editor_scene import Box
+# from box_editor.box_editor_scene import Box
 from ocr_engine.ocr_results import OCRResultBlock
 
 
@@ -39,7 +39,7 @@ class OCREngine():
     #     return None
 
     @abstractmethod
-    def start_recognize_thread(self, callback, box: Box, ppi: float, language: Lang = Lang('English'), raw=False):
+    def start_recognize_thread(self, callback, box, image: QtGui.QPixmap, ppi: float, language: Lang = Lang('English'), raw=False):
         pass
 
     @abstractmethod

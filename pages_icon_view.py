@@ -71,8 +71,25 @@ class PagesIconView(QtWidgets.QListView):
                 self.project.remove_page(page)
             self.update(index)
 
+    def remove_page(self, page):
+        for row in range(self.model().rowCount() - 1, -1, -1):
+            index = self.model().index(row, 0)
+            if self.model().data(index, role=QtCore.Qt.ItemDataRole.UserRole) == page:
+                self.model().removeRow(row)
+                break
+
     def load_page(self, page: Page):
         self.model().add_page(page)
 
     def cleanup(self) -> None:
         self.model().removeRows(0, self.model().rowCount())
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key.Key_Delete:
+            # Delete the currently selected item
+            selected_indexes = self.selectedIndexes()
+            for index in selected_indexes:
+                self.model().removeRow(index.row())
+        else:
+            # Pass the event on to the default handler
+            super().keyPressEvent(event)

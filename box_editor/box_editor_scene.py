@@ -18,6 +18,18 @@ class HEADER_FOOTER_ITEM_TYPE(Enum):
     FOOTER = auto()
 
 
+class SplitLine(QtWidgets.QGraphicsLineItem):
+    def __init__(self, x: float, height: float):
+        super().__init__()
+
+        self.height = height
+
+        self.setLine(x, 0, x, self.height)
+
+    def update_x_position(self, x: float):
+        self.setLine(x, 0, x, self.height)
+
+
 class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
     def __init__(self, type: HEADER_FOOTER_ITEM_TYPE, page_size: QtCore.QSizeF, y: float):
         super().__init__()
@@ -83,6 +95,7 @@ class BOX_EDITOR_SCENE_STATE(Enum):
     HAND = auto()
     PLACE_HEADER = auto()
     PLACE_FOOTER = auto()
+    PLACE_X_SPLITLINE = auto()
     RENUMBER = auto()
 
 
@@ -122,6 +135,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         # Variables for box renumbering
         self.renumber_line = None
         self.set_renumber_first_box(None)
+
+        self.x_splitline = None
 
         self.swap_left_right = False
         self.swap_top_bottom = False
@@ -219,6 +234,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
                 for item in self.items():
                     item.setAcceptHoverEvents(False)
+            case BOX_EDITOR_SCENE_STATE.PLACE_X_SPLITLINE:
+                cursor = QtCore.Qt.CursorShape.SplitHCursor
 
         if cursor:
             QtWidgets.QApplication.setOverrideCursor(cursor)
@@ -562,6 +579,9 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                     x = self.renumber_first_box.rect().x() + self.renumber_first_box.rect().width() / 2
                     y = self.renumber_first_box.rect().y() + self.renumber_first_box.rect().height() / 2
                     self.renumber_line.setLine(x, y, event.scenePos().x(), event.scenePos().y())
+            case BOX_EDITOR_SCENE_STATE.PLACE_X_SPLITLINE:
+                if self.x_splitline:
+                    self.x_splitline.update_x_position(event.scenePos().x())
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
@@ -652,6 +672,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                             case QtCore.Qt.Key.Key_D:
                                 for box in boxes:
                                     self.toggle_export_enabled(box)
+                            case QtCore.Qt.Key.Key_X:
+                                self.x_splitline = SplitLine(self.get_mouse_position().x(), self.height())
+                                self.addItem(self.x_splitline)
+
+                                self.set_editor_state(BOX_EDITOR_SCENE_STATE.PLACE_X_SPLITLINE)
                             # case _:
                             #     super().keyPressEvent(event)
             case BOX_EDITOR_SCENE_STATE.RENUMBER:

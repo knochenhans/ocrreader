@@ -163,6 +163,7 @@ class ExporterODT(Exporter):
         self.odf_text.save(filename)
 
         self.open_finished_dialog(filename)
+
     def preview_document_changed(self, document: QtGui.QTextDocument):
         self.document = document
 
@@ -318,10 +319,10 @@ class ExporterEPUB(Exporter):
 
             self.current_chapter.content = str(self.current_chapter.content) + text + '\n\n'
         elif box_data.type == BOX_DATA_TYPE.IMAGE:
-            format = 'JPEG'
-            image_uid = f'page_{page_nr}_{box_data.order}.{format}'
+            image_format = 'JPEG'
+            image_uid = f'page_{page_nr}_{box_data.order}.{image_format}'
             image_path = self.temp_dir.name + '/' + image_uid
-            QtGui.QPixmap(page.image_path).copy(box_data.rect).save(image_path, format)
+            QtGui.QPixmap(page.image_path).copy(box_data.rect).save(image_path, image_format)
 
             image = epub.EpubImage()
             image_content = open(image_path, 'rb').read()

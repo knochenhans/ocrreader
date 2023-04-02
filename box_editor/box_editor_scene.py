@@ -398,7 +398,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                         # Multiple text blocks have been recognized within the selection, replace original box with new boxes
 
                         # Remove original box
-                        self.remove_box(original_box)
+                        self.remove_box_(original_box)
 
                         added_boxes = 0
 

@@ -179,7 +179,7 @@ class ExporterPlainText(Exporter):
         return True
 
     def write_box(self, box_data: BoxData, page: Page, page_nr: int):
-        if box_data.type == BOX_DATA_TYPE.TEXT:
+        if box_data.type is BOX_DATA_TYPE.TEXT:
             self.text += box_data.text.toPlainText() + '\n'
 
     def new_page(self, page: Page, page_nr: int):
@@ -230,7 +230,7 @@ class ExporterPreviewWindow(QtWidgets.QDialog):
 
         self.setWindowTitle(self.tr('Export Preview', 'dialog_export_window_title_preview'))
 
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -257,7 +257,7 @@ class ExporterEPUB_OptionWindow(QtWidgets.QDialog):
 
         self.setWindowTitle(self.tr('EPUB Export Options', 'dialog_export_window_title_epub_options'))
 
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -297,9 +297,9 @@ class ExporterEPUB(Exporter):
         text = ''
         classes = ''
 
-        if box_data.type == BOX_DATA_TYPE.TEXT:
+        if box_data.type is BOX_DATA_TYPE.TEXT:
             document_helper = DocumentHelper(box_data.text.clone(), box_data.language.pt1)
-            paragraphs = document_helper.break_document()
+            paragraphs = document_helper.break_document_into_fragments()
 
             if not box_data.tag:
                 box_data.tag = 'div'
@@ -319,7 +319,7 @@ class ExporterEPUB(Exporter):
                 text += f'</{box_data.tag}>'
 
             self.current_chapter.content = str(self.current_chapter.content) + text + '\n\n'
-        elif box_data.type == BOX_DATA_TYPE.IMAGE:
+        elif box_data.type is BOX_DATA_TYPE.IMAGE:
             image_format = 'JPEG'
             image_uid = f'page_{page_nr}_{box_data.order}.{image_format}'
             image_path = self.temp_dir.name + '/' + image_uid

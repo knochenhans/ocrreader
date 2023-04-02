@@ -1,6 +1,6 @@
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtWidgets
 
 
-class PyOCR(QtWidgets.QApplication):
+class ocrreader(QtWidgets.QApplication):
     def __init__(self, argv) -> None:
         super().__init__(argv)

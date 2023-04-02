@@ -39,7 +39,7 @@ class HeaderFooterItem(QtWidgets.QGraphicsRectItem):
         rect.setX(0)
         rect.setWidth(page_size.width())
 
-        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+        if type is HEADER_FOOTER_ITEM_TYPE.HEADER:
             title = 'Header'
             rect.setBottom(y)
         else:
@@ -186,7 +186,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         return True
 
     def clear_boxes(self):
-        self.current_page.clear()
+        if self.current_page:
+            self.current_page.clear()
         for item in self.items():
             if isinstance(item, Box):
                 self.removeItem(item)
@@ -251,7 +252,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 button = QtWidgets.QMessageBox.question(parent, self.tr('Edit text of multiple boxes?', 'dialog_multiple_boxes_edit_title'), self.tr(
                     'Multiple boxes are currently selected, do you want to set the current text for all selected box?', 'dialog_multiple_boxes_edit'))
 
-                if button == QtWidgets.QMessageBox.No:
+                if button == QtWidgets.QMessageBox.StandardButton.No:
                     return
         for item in self.selectedItems():
             item.properties.text = self.property_editor.box_widget.text_edit.document()
@@ -449,7 +450,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         return self.views()[0].mapToScene(mouse_origin)
 
     def add_header_footer(self, type: HEADER_FOOTER_ITEM_TYPE, y: float):
-        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+        if type is HEADER_FOOTER_ITEM_TYPE.HEADER:
             if self.header_item:
                 self.removeItem(self.header_item)
         else:
@@ -462,7 +463,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         item.setFocus()
         item.update_title()
 
-        if type == HEADER_FOOTER_ITEM_TYPE.HEADER:
+        if type is HEADER_FOOTER_ITEM_TYPE.HEADER:
             self.header_item = item
             if self.project:
                 self.project.header_y = y
@@ -718,49 +719,53 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         if self.footer_item:
             to_footer = self.footer_item.rect().top()
 
-        ocr_result_blocks: list[OCRResultBlock] = self.engine_manager.get_current_engine().analyse_layout(self.image, int(from_header), int(to_footer))
+        if self.image:
+            block = self.engine_manager.get_current_engine().analyse_layout(self.image, int(from_header), int(to_footer))
 
-        if ocr_result_blocks:
-            added_boxes = 0
+            if block:
+                ocr_result_blocks: list[OCRResultBlock] = block
 
-            for ocr_result_block in ocr_result_blocks:
-                if ocr_result_block.type == OCR_RESULT_BLOCK_TYPE.H_LINE or ocr_result_block.type == OCR_RESULT_BLOCK_TYPE.V_LINE:
-                    self.addItem(QtWidgets.QGraphicsLineItem(QtCore.QLine(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight())))
-                elif ocr_result_block.type != OCR_RESULT_BLOCK_TYPE.UNKNOWN:
-                    new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight()), added_boxes)
-                    new_box.properties.ocr_result_block = ocr_result_block
+                if ocr_result_blocks:
+                    added_boxes = 0
 
-                    match ocr_result_block.type:
-                        case OCR_RESULT_BLOCK_TYPE.TEXT:
-                            new_box.properties.type = BOX_DATA_TYPE.TEXT
-                        case OCR_RESULT_BLOCK_TYPE.IMAGE:
-                            new_box.properties.type = BOX_DATA_TYPE.IMAGE
+                    for ocr_result_block in ocr_result_blocks:
+                        if ocr_result_block.type is OCR_RESULT_BLOCK_TYPE.H_LINE or ocr_result_block.type is OCR_RESULT_BLOCK_TYPE.V_LINE:
+                            self.addItem(QtWidgets.QGraphicsLineItem(QtCore.QLine(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight())))
+                        elif ocr_result_block.type != OCR_RESULT_BLOCK_TYPE.UNKNOWN:
+                            new_box = self.add_box(QtCore.QRectF(ocr_result_block.bbox_rect.topLeft(), ocr_result_block.bbox_rect.bottomRight()), added_boxes)
+                            new_box.properties.ocr_result_block = ocr_result_block
 
-                    new_box.properties.tag = ocr_result_block.tag
-                    new_box.properties.class_ = ocr_result_block.class_
+                            match ocr_result_block.type:
+                                case OCR_RESULT_BLOCK_TYPE.TEXT:
+                                    new_box.properties.type = BOX_DATA_TYPE.TEXT
+                                case OCR_RESULT_BLOCK_TYPE.IMAGE:
+                                    new_box.properties.type = BOX_DATA_TYPE.IMAGE
 
-                    new_box.update()
+                            new_box.properties.tag = ocr_result_block.tag
+                            new_box.properties.class_ = ocr_result_block.class_
 
-                self.current_box = None
+                            new_box.update()
 
-                added_boxes += 1
-                # TODO: Move to thread
-                if instance := QtCore.QCoreApplication.instance():
-                    instance.processEvents()
+                        self.current_box = None
 
-        # Remove items fully contained by larger items
-        delete_items: list[Box] = []
+                        added_boxes += 1
+                        # TODO: Move to thread
+                        if instance := QtCore.QCoreApplication.instance():
+                            instance.processEvents()
 
-        for item in self.items():
-            if isinstance(item, Box):
-                if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):
-                    delete_items.append(item)
+                # Remove items fully contained by larger items
+                delete_items: list[Box] = []
 
-        for item in list(set(delete_items)):
-            if isinstance(item, Box):
-                self.removeItem(item)
+                for item in self.items():
+                    if isinstance(item, Box):
+                        if item.collidingItems(QtCore.Qt.ItemSelectionMode.ContainsItemShape):
+                            delete_items.append(item)
 
-        self.update_property_editor()
+                for item in list(set(delete_items)):
+                    if isinstance(item, Box):
+                        self.removeItem(item)
+
+                self.update_property_editor()
 
     def modify_box(self, box: Box, properties: BoxData, last_pos: QtCore.QPointF):
         modify_box_command = ModifyBoxCommand(box, properties, last_pos)

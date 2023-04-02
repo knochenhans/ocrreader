@@ -64,7 +64,7 @@ class Preferences(QtWidgets.QDialog):
 
         vbox_layout.addLayout(hbox_layout)
 
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -325,14 +325,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def open_recent_doc(self):
         # Get selected recent document and open it
-        file_path: str = self.sender().text()
+        sender = self.sender()
 
-        if os.path.exists(file_path):
-            self.load_images([file_path])
-            return True
-        else:
-            QtWidgets.QMessageBox.warning(self, 'File not found', f'The document {file_path} could not be opened and will be removed from the recent documents list.')
-            self.remove_recent_doc(file_path)
+        if isinstance(sender, QtGui.QAction):
+            file_path: str = sender.text()
+
+            if os.path.exists(file_path):
+                self.load_images([file_path])
+                return True
+            else:
+                QtWidgets.QMessageBox.warning(self, 'File not found', f'The document {file_path} could not be opened and will be removed from the recent documents list.')
+                self.remove_recent_doc(file_path)
         return False
 
     def remove_recent_doc(self, file_path: str) -> None:
@@ -364,14 +367,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def open_recent_project(self) -> bool:
         # Get selected recent document and open it
-        file_path: str = self.sender().text()
+        sender = self.sender()
 
-        if os.path.exists(file_path):
-            self.open_project_file(file_path)
-            return True
-        else:
-            QtWidgets.QMessageBox.warning(self, 'File not found', f'The project file {file_path} could not be opened and will be removed from the recent projects list.')
-            self.remove_recent_project(file_path)
+        if isinstance(sender, QtGui.QAction):
+            file_path: str = sender.text()
+
+            if os.path.exists(file_path):
+                self.open_project_file(file_path)
+                return True
+            else:
+                QtWidgets.QMessageBox.warning(self, 'File not found', f'The project file {file_path} could not be opened and will be removed from the recent projects list.')
+                self.remove_recent_project(file_path)
         return False
 
     def remove_recent_project(self, file_path: str) -> None:
@@ -681,24 +687,33 @@ class MainWindow(QtWidgets.QMainWindow):
     def load_settings(self) -> None:
         self.settings = QtCore.QSettings()
 
-        geometry: QtCore.QByteArray = self.settings.value('geometry')
+        value = self.settings.value('geometry')
 
-        if geometry:
-            self.restoreGeometry(geometry)
-        else:
-            self.resize(1280, 800)
+        if isinstance(value, QtCore.QByteArray):
+            geometry: QtCore.QByteArray = value
 
-        recent_docs: list[str] = self.settings.value('recentDocs')
+            if geometry:
+                self.restoreGeometry(geometry)
+            else:
+                self.resize(1280, 800)
 
-        if recent_docs:
-            for recent_doc in reversed(recent_docs):
-                self.add_recent_doc(recent_doc)
+        value = self.settings.value('recentDocs')
 
-        recent_projects: list[str] = self.settings.value('recentProjects')
+        if isinstance(value, list):
+            recent_docs: list[str] = value
 
-        if recent_projects:
-            for recent_project in reversed(recent_projects):
-                self.add_recent_project(recent_project)
+            if recent_docs:
+                for recent_doc in reversed(recent_docs):
+                    self.add_recent_doc(recent_doc)
+
+        value = self.settings.value('recentProjects')
+
+        if isinstance(value, list):
+            recent_projects: list[str] = value
+
+            if recent_projects:
+                for recent_project in reversed(recent_projects):
+                    self.add_recent_project(recent_project)
 
 
 class LoadImageCommand(QtGui.QUndoCommand):

@@ -3,10 +3,10 @@ import sys
 from PySide6 import QtCore
 
 from main_window import MainWindow
-from ocrreader import PyOCR
+from ocrreader import ocrreader
 
 if __name__ == '__main__':
-    app = PyOCR(sys.argv)
+    app = ocrreader(sys.argv)
 
     translator = QtCore.QTranslator()
 

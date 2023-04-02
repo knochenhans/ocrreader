@@ -105,7 +105,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.left_touched = False
 
         # Last position before drag
-        self.last_pos: QtCore.QPointF
+        self.last_pos: QtCore.QPointF = QtCore.QPointF()
 
     def scene(self):
         return self.custom_scene
@@ -125,7 +125,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         color = BoxColor()
 
         if self.properties.export_enabled:
-            if self.properties.type == BOX_DATA_TYPE.TEXT:
+            if self.properties.type is BOX_DATA_TYPE.TEXT:
                 color = self.color_text
             else:
                 color = self.color_image
@@ -282,7 +282,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         self.menu.addAction(image_action)
 
-        if self.properties.type == BOX_DATA_TYPE.TEXT:
+        if self.properties.type is BOX_DATA_TYPE.TEXT:
             read_action = QtGui.QAction('Read')
             read_action.triggered.connect(self.recognize_text)
             self.menu.addAction(read_action)
@@ -302,7 +302,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
         new_rect = self.rect()
 
-        if self.type == BOX_DATA_TYPE.TEXT:
+        if self.type is BOX_DATA_TYPE.TEXT:
             pass
         else:
             image = self.get_image().toImage().copy()
@@ -367,7 +367,7 @@ class Box(QtWidgets.QGraphicsRectItem):
             button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
                                                     self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
-            if button == QtWidgets.QMessageBox.Yes:
+            if button == QtWidgets.QMessageBox.StandardButton.Yes:
                 self.scene().recognize_box(self)
         else:
             self.scene().recognize_box(self)
@@ -378,7 +378,7 @@ class Box(QtWidgets.QGraphicsRectItem):
             button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
                                                     self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
 
-            if button == QtWidgets.QMessageBox.Yes:
+            if button == QtWidgets.QMessageBox.StandardButton.Yes:
                 self.scene().recognize_box(self, True)
         else:
             self.scene().recognize_box(self, True)

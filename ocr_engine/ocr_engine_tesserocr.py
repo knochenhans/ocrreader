@@ -3,10 +3,10 @@ from dataclasses import dataclass, field
 
 import debugpy
 import tesserocr as tesserocr
+from box_editor.box_editor_scene import Box
 from iso639 import Lang  # type: ignore
 from PySide6 import QtCore, QtGui
 
-from box_editor.box_editor_scene import Box
 from ocr_engine.ocr_engine import OCREngine
 from ocr_engine.ocr_results import (OCR_RESULT_BLOCK_TYPE, OCRResultBlock,
                                     OCRResultLine, OCRResultParagraph,

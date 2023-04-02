@@ -148,41 +148,45 @@ class OCRResultBlock(OCRResult):
 
         settings = QtCore.QSettings()
 
-        diagnostics_threshold = int(settings.value('diagnostics_threshold', 80))
 
-        for p, paragraph in enumerate(self.paragraphs):
-            if paragraph.lines:
-                block_format = QtGui.QTextBlockFormat()
-                # block_format.setBottomMargin(15.0)
-                cursor.setBlockFormat(block_format)
-                # format.setFont(self.font)
-                format.setFontPointSize(round(self.get_font_size()))
-                # format.setForeground(self.foreground_color)
-                cursor.setCharFormat(format)
-                # cursor.insertBlock(block_format)
-                # cursor.deletePreviousChar()
+        value = settings.value('diagnostics_threshold', 80)
 
-                for l, line in enumerate(paragraph.lines):
-                    for w, word in enumerate(line.words):
-                        if diagnostics:
-                            if word.confidence < diagnostics_threshold:
-                                format.setBackground(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
+        if isinstance(value, str):
+            diagnostics_threshold = int(value)
+
+            for p, paragraph in enumerate(self.paragraphs):
+                if paragraph.lines:
+                    block_format = QtGui.QTextBlockFormat()
+                    # block_format.setBottomMargin(15.0)
+                    cursor.setBlockFormat(block_format)
+                    # format.setFont(self.font)
+                    format.setFontPointSize(round(self.get_font_size()))
+                    # format.setForeground(self.foreground_color)
+                    cursor.setCharFormat(format)
+                    # cursor.insertBlock(block_format)
+                    # cursor.deletePreviousChar()
+
+                    for l, line in enumerate(paragraph.lines):
+                        for w, word in enumerate(line.words):
+                            if diagnostics:
+                                if word.confidence < diagnostics_threshold:
+                                    format.setBackground(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
+                                cursor.setCharFormat(format)
+
+                            cursor.insertText(word.blanks_before * ' ')
+                            cursor.insertText(word.text)
+                            format.clearBackground()
                             cursor.setCharFormat(format)
+                        if l < (len(paragraph.lines) - 1):
+                            # QChar::LineSeparator
+                            cursor.insertText('\u2028')
+                if p < (len(self.paragraphs) - 1):
+                    # QChar::ParagraphSeparator
+                    cursor.insertText('\u2029')
 
-                        cursor.insertText(word.blanks_before * ' ')
-                        cursor.insertText(word.text)
-                        format.clearBackground()
-                        cursor.setCharFormat(format)
-                    if l < (len(paragraph.lines) - 1):
-                        # QChar::LineSeparator
-                        cursor.insertText('\u2028')
-            if p < (len(self.paragraphs) - 1):
-                # QChar::ParagraphSeparator
-                cursor.insertText('\u2029')
-
-        if remove_hyphens:
-            document_helper = DocumentHelper(document, self.language.pt1)
-            document = document_helper.remove_hyphens()
+            if remove_hyphens:
+                document_helper = DocumentHelper(document, self.language.pt1)
+                document = document_helper.remove_hyphens()
 
         # TODO: Better to clone here?
         return document

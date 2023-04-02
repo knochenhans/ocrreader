@@ -762,6 +762,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
 
         self.update_property_editor()
 
+    def modify_box(self, box: Box, properties: BoxData, last_pos: QtCore.QPointF):
+        modify_box_command = ModifyBoxCommand(box, properties, last_pos)
+        self.undo_stack.push(modify_box_command)
+
 
 class AddBoxCommand(QtGui.QUndoCommand):
     def __init__(self, box_editor_scene: BoxEditorScene, rect: QtCore.QRectF, order: int):
@@ -789,3 +793,21 @@ class RemoveBoxCommand(QtGui.QUndoCommand):
 
     def undo(self) -> None:
         self.box_editor_scene.add_box_(self.box.rect())
+
+
+class ModifyBoxCommand(QtGui.QUndoCommand):
+    def __init__(self, box: Box, properties: BoxData, last_pos: QtCore.QPointF):
+        super().__init__()
+        self.box = box
+        self.properties = properties
+        self.properties_old: BoxData
+        self.last_pos = last_pos
+        self.pos = self.box.pos()
+
+    def redo(self) -> None:
+        self.properties_old = self.box.properties
+        self.box.properties = self.properties
+        self.box.setPos(self.pos)
+
+    def undo(self) -> None:
+        self.box.setPos(self.last_pos)

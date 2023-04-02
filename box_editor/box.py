@@ -1,3 +1,4 @@
+import copy
 import math
 from dataclasses import dataclass
 
@@ -103,12 +104,21 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.bottom_touched = False
         self.left_touched = False
 
+        # Last position before drag
+        self.last_pos: QtCore.QPointF
+
     def scene(self):
         return self.custom_scene
 
-    def updateProperties(self) -> None:
+    def updateProperties(self, undo: bool = False) -> None:
         '''Update properties with current box position'''
-        self.properties.rect = QtCore.QRectF(self.mapToScene(self.rect().topLeft()), self.mapToScene(self.rect().bottomRight())).toAlignedRect()
+        new_rect = QtCore.QRectF(self.mapToScene(self.rect().topLeft()), self.mapToScene(self.rect().bottomRight())).toAlignedRect()
+        if undo:
+            properties = copy.copy(self.properties)
+            properties.rect = new_rect
+            self.scene().modify_box(self, properties, self.last_pos)
+        else:
+            self.properties.rect = new_rect
 
     def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionGraphicsItem, widget: QtWidgets.QWidget) -> None:
         '''Paint background and border using colors defined by type and update order number item'''
@@ -245,10 +255,10 @@ class Box(QtWidgets.QGraphicsRectItem):
         match event.modifiers():
             case QtCore.Qt.KeyboardModifier.NoModifier:
                 if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
-                    self.origin_rect = self.rect()
                     if self.left_touched or self.right_touched or self.top_touched or self.bottom_touched:
                         self.move_edges = True
                     else:
+                        self.last_pos = self.pos()
                         super().mousePressEvent(event)
             case QtCore.Qt.KeyboardModifier.ControlModifier:
                 if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
@@ -256,7 +266,7 @@ class Box(QtWidgets.QGraphicsRectItem):
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
         self.move_edges = False
-        self.updateProperties()
+        self.updateProperties(True)
         super().mouseReleaseEvent(event)
 
     def contextMenuEvent(self, event: QtWidgets.QGraphicsSceneContextMenuEvent) -> None:

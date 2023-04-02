@@ -37,6 +37,14 @@ class Exporter():
     def close(self):
         pass
 
+    def open_finished_dialog(self, filename: str):
+        response = QtWidgets.QMessageBox.question(self.parent, 'Export Successful', f'File {filename} exported successfully.\nDo you want to open it?',
+                                                  QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel, QtWidgets.QMessageBox.StandardButton.Ok)
+
+        if response == QtWidgets.QMessageBox.StandardButton.Open:
+            # open the file using the associated application
+            os.system(f'xdg-open {filename}')
+
     def write_box(self, box_data: BoxData):
         pass
 
@@ -154,6 +162,7 @@ class ExporterODT(Exporter):
 
         self.odf_text.save(filename)
 
+        self.open_finished_dialog(filename)
     def preview_document_changed(self, document: QtGui.QTextDocument):
         self.document = document
 
@@ -193,6 +202,8 @@ class ExporterPlainText(Exporter):
 
             with open(self.prepare_filename(filename, extension), 'w') as file:
                 file.write(self.text)
+            
+            self.open_finished_dialog(filename)
 
     def preview_document_changed(self, document: QtGui.QTextDocument):
         self.document = document
@@ -349,6 +360,8 @@ class ExporterEPUB(Exporter):
                 filename += '.' + extension
 
             epub.write_epub(self.prepare_filename(filename, extension), self.book, {})
+
+            self.open_finished_dialog(filename)
 
     def update_css(self, css: str):
         self.css = css

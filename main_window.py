@@ -10,6 +10,7 @@ from pdf2image import convert_from_path  # type: ignore
 from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from box_editor.box_data import BOX_DATA_TYPE
 from box_editor.box_editor_view import BoxEditorView
 from exporter import (ExporterEPUB, ExporterManager, ExporterODT,
                       ExporterPlainText)
@@ -596,15 +597,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.box_editor.scene().disable_boxes_in_header_footer()
 
         if exporter.open(self.temp_dir, self.project):
+            any_recognized = False
+
             for p, page in enumerate(self.project.pages):
-                exporter.new_page(page, p + 1)
                 for box_data in page.box_datas:
-                    if box_data.export_enabled:
-                        exporter.write_box(box_data)
+                    if box_data.type == BOX_DATA_TYPE.TEXT:
+                        if box_data.recognized:
+                            any_recognized = True
+                    else:
+                        any_recognized = True
 
-            exporter.finish()
+            if any_recognized:
+                if exporter.open(self.temp_dir, self.project):
+                    for p, page in enumerate(self.project.pages):
+                        exporter.new_page(page, p + 1)
 
-            self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
+                        for box_data in page.box_datas:
+                            if box_data.recognized:
+                                if box_data.export_enabled:
+                                    exporter.write_box(box_data)
+
+                    exporter.finish()
+
+                    self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self, 'Export Canceled', 'There are no recognized text boxes or images that can be exported for this document. The export process has been canceled.', QtWidgets.QMessageBox.StandardButton.Ok)
+
         else:
             self.statusBar().showMessage(self.tr('Project export aborted', 'status_export_aborted'))
 

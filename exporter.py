@@ -155,14 +155,15 @@ class ExporterODT(Exporter):
         filename = QtWidgets.QFileDialog.getSaveFileName(self.parent, caption=self.parent.tr('Export to ODT', 'dialog_export_caption_odt'),
                                                          filter=self.parent.tr('ODT file (*.odt)', 'dialog_export_filter_odt'))[0]
 
-        file_extension = os.path.splitext(filename)[1]
+        if filename:
+            file_extension = os.path.splitext(filename)[1]
 
-        if file_extension != '.' + extension:
-            filename += '.' + extension
+            if file_extension != '.' + extension:
+                filename += '.' + extension
 
-        self.odf_text.save(filename)
+            self.odf_text.save(filename)
 
-        self.open_finished_dialog(filename)
+            self.open_finished_dialog(filename)
 
     def preview_document_changed(self, document: QtGui.QTextDocument):
         self.document = document
@@ -203,7 +204,7 @@ class ExporterPlainText(Exporter):
 
             with open(self.prepare_filename(filename, extension), 'w') as file:
                 file.write(self.text)
-            
+
             self.open_finished_dialog(filename)
 
     def preview_document_changed(self, document: QtGui.QTextDocument):

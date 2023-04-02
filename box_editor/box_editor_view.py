@@ -115,7 +115,7 @@ class BoxEditorView(QtWidgets.QGraphicsView):
                 self.scene().current_box = None
         # return new_boxes
 
-    def analyze_layout(self, recognize=False) -> None:
+    def analyze_layout(self, callback, recognize=False) -> None:
         self.scene().analyse_layout()
 
         if recognize:
@@ -123,5 +123,3 @@ class BoxEditorView(QtWidgets.QGraphicsView):
                 box.recognize_text()
                 # TODO: Move to thread
                 QtCore.QCoreApplication.instance().processEvents()
-
-

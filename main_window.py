@@ -10,9 +10,7 @@ from pdf2image import convert_from_path  # type: ignore
 from PIL import Image
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from box_editor.box_data import BOX_DATA_TYPE
 from box_editor.box_editor_view import BoxEditorView
-from document_helper import DocumentHelper
 from exporter import (ExporterEPUB, ExporterManager, ExporterODT,
                       ExporterPlainText)
 from ocr_engine.ocr_engine import OCREngineManager
@@ -674,7 +672,7 @@ class LoadImageCommand(QtGui.QUndoCommand):
             if filename:
                 image_filenames: list[str] = []
 
-                # Split PDFs up into images and save them in an image folder
+                # Split PDFs into images and save them in an image folder
                 if os.path.splitext(filename)[1] == '.pdf':
                     images = convert_from_path(filename, output_folder=self.main_window.temp_dir.name)
 
@@ -684,6 +682,8 @@ class LoadImageCommand(QtGui.QUndoCommand):
                         image_png.save(image_png_filename)
                         os.remove(image.filename)
                         image_filenames.append(image_png_filename)
+
+                        # TODO: Delete images from folder on undo
 
                 else:
                     image_filenames.append(filename)

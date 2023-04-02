@@ -325,7 +325,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def open_recent_doc(self):
         # Get selected recent document and open it
         file_path: str = self.sender().text()
-        self.load_images([file_path])
+
+        if os.path.exists(file_path):
+            self.load_images([file_path])
+            return True
+        else:
+            QtWidgets.QMessageBox.warning(self, 'File not found', f'The document {file_path} could not be opened and will be removed from the recent documents list.')
+            self.remove_recent_doc(file_path)
+        return False
+
+    def remove_recent_doc(self, file_path: str) -> None:
+        for recent_doc in self.recent_docs:
+            if recent_doc.text() == file_path:
+                self.recent_docs.remove(recent_doc)
 
     def add_recent_project(self, file_path: str):
         # Add new file path to top of list, remove the last one
@@ -349,10 +361,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.recent_projects_menu.clear()
         self.recent_projects_menu.addActions(self.recent_projects)
 
-    def open_recent_project(self):
+    def open_recent_project(self) -> bool:
         # Get selected recent document and open it
         file_path: str = self.sender().text()
-        self.open_project_file(file_path)
+
+        if os.path.exists(file_path):
+            self.open_project_file(file_path)
+            return True
+        else:
+            QtWidgets.QMessageBox.warning(self, 'File not found', f'The project file {file_path} could not be opened and will be removed from the recent projects list.')
+            self.remove_recent_project(file_path)
+        return False
+
+    def remove_recent_project(self, file_path: str) -> None:
+        for recent_project in self.recent_projects:
+            if recent_project.text() == file_path:
+                self.recent_projects.remove(recent_project)
 
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():
@@ -611,7 +635,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             for url in event.mimeData().urls():
                 filenames.append(url.toLocalFile())
-                
+
             self.load_images(filenames)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:

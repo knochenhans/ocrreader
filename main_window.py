@@ -602,7 +602,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     if box_data.export_enabled:
                         exporter.write_box(box_data)
 
-            exporter.close()
+            exporter.finish()
 
             self.statusBar().showMessage(self.tr('Project exported successfully', 'status_exported'))
         else:

@@ -34,7 +34,7 @@ class Exporter():
 
         return True
 
-    def close(self):
+    def finish(self):
         pass
 
     def open_finished_dialog(self, filename: str):
@@ -146,7 +146,7 @@ class ExporterODT(Exporter):
         mp = MasterPage(name='Standard', pagelayoutname=pl)
         self.odf_text.masterstyles.addElement(mp)
 
-    def close(self):
+    def finish(self):
         # TODO: Generalize file save dialog in base class
         # preview = ExporterPreviewWindow(self.parent, document, self.preview_document_changed)
 
@@ -186,7 +186,7 @@ class ExporterPlainText(Exporter):
         if page_nr > 1:
             self.text += '\n\n'
 
-    def close(self):
+    def finish(self):
         document = QtGui.QTextDocument(self.text)
         preview = ExporterPreviewWindow(self.parent, document, self.preview_document_changed)
 
@@ -337,7 +337,7 @@ class ExporterEPUB(Exporter):
             self.current_chapter.content = str(self.current_chapter.content) + f'''<figure><img style="height: {box_data.rect.height() / 15}em" src="{image.file_name}" alt="{image.file_name}"/>'''
             self.current_chapter.content = str(self.current_chapter.content) + '</figure>\n\n'
 
-    def close(self):
+    def finish(self):
         self.book.add_item(self.current_chapter)
         self.book.add_item(epub.EpubNcx())
         self.book.add_item(epub.EpubNav())

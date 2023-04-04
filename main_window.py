@@ -361,6 +361,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if len(self.recent_projects) > 5:
             self.recent_projects.pop()
 
+        for action in self.recent_projects:
+            action.setShortcut('')
+
+        self.recent_projects[0].setShortcut(QtGui.QKeySequence('Ctrl+1'))
+
         # Update recent documents menu
         self.recent_projects_menu.clear()
         self.recent_projects_menu.addActions(self.recent_projects)

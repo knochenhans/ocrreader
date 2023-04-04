@@ -113,12 +113,14 @@ class Box(QtWidgets.QGraphicsRectItem):
     def updateProperties(self, undo: bool = False) -> None:
         '''Update properties with current box position'''
         new_rect = QtCore.QRectF(self.mapToScene(self.rect().topLeft()), self.mapToScene(self.rect().bottomRight())).toAlignedRect()
-        if undo:
-            properties = copy.copy(self.properties)
-            properties.rect = new_rect
-            self.scene().modify_box(self, properties, self.last_pos)
-        else:
-            self.properties.rect = new_rect
+        # Check for actual position changes
+        if self.rect() != new_rect:
+            if undo:
+                properties = copy.copy(self.properties)
+                properties.rect = new_rect
+                self.scene().modify_box(self, properties, self.last_pos)
+            else:
+                self.properties.rect = new_rect
 
     def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionGraphicsItem, widget: QtWidgets.QWidget) -> None:
         '''Paint background and border using colors defined by type and update order number item'''

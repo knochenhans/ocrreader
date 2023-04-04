@@ -365,7 +365,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
             button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
-                                                    self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+                                                    self.scene().tr('Text recognition has already been run for box {}. Run again?'.format(self.properties.order + 1), 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.StandardButton.Yes:
                 self.scene().recognize_box(self)
@@ -376,7 +376,7 @@ class Box(QtWidgets.QGraphicsRectItem):
         '''Delegate recognition to scene in case new boxes are detected'''
         if self.properties.recognized:
             button = QtWidgets.QMessageBox.question(self.scene().parent(), self.scene().tr('Recognize again?', 'dialog_recognize_again_title'),
-                                                    self.scene().tr('Text recognition has already been run for this box. Run again?', 'dialog_recognize_again'))
+                                                    self.scene().tr('Text recognition has already been run for box {}. Run again?'.format(self.properties.order + 1), 'dialog_recognize_again'))
 
             if button == QtWidgets.QMessageBox.StandardButton.Yes:
                 self.scene().recognize_box(self, True)

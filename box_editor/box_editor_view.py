@@ -60,7 +60,7 @@ class BoxEditorView(QtWidgets.QGraphicsView):
 
         self.property_editor.box_widget.reset()
 
-        self.scene().setFocus()
+        # self.scene().setFocus()
 
     def scene(self):
         return self.custom_scene

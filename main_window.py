@@ -460,7 +460,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.box_editor.load_page(page)
             self.project.current_page_idx = self.page_icon_view.currentIndex().row()
             self.box_editor.scene().update()
-            self.box_editor.setFocus()
+            # self.box_editor.setFocus()
         else:
             self.box_editor.clear()
 

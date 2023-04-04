@@ -593,6 +593,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.page_icon_view.close()
         self.box_editor.close()
         self.property_editor.close()
+        self.last_project_filename = ''
 
     def close_current_project(self) -> None:
         self.close_project()

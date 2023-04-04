@@ -87,9 +87,19 @@ class PagesIconView(QtWidgets.QListView):
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key.Key_Delete:
             # Delete the currently selected item
-            selected_indexes = self.selectedIndexes()
-            for index in selected_indexes:
-                self.model().removeRow(index.row())
+            self.remove_selected_pages()
+        elif event.key() == QtCore.Qt.Key.Key_Up:
+            index = self.currentIndex()
+            if index.row() > 0:
+                self.setCurrentIndex(self.model().index(index.row() - 1, index.column()))
+        elif event.key() == QtCore.Qt.Key.Key_Down:
+            index = self.currentIndex()
+            if index.row() < self.model().rowCount() - 1:
+                self.setCurrentIndex(self.model().index(index.row() + 1, index.column()))
+        elif event.key() == QtCore.Qt.Key.Key_PageUp:
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - self.viewport().height())
+        elif event.key() == QtCore.Qt.Key.Key_PageDown:
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() + self.viewport().height())
         else:
             # Pass the event on to the default handler
             super().keyPressEvent(event)

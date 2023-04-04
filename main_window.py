@@ -253,7 +253,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.preferences_action.setShortcut(QtGui.QKeySequence('Ctrl+p'))
         # self.redo_action.triggered.connect(self.redo)
 
-        self.action_delete_selected_pages = QtGui.QAction(self.tr('Delete', 'delete_pages'), self)
+        self.delete_selected_pages_action = QtGui.QAction(self.tr('Delete', 'delete_pages'), self)
+        self.delete_selected_pages_action.setShortcut(QtGui.QKeySequence('Delete'))
 
         self.page_icon_view_context_menu.addAction(self.load_image_action)
 
@@ -392,13 +393,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():
-            self.page_icon_view_context_menu.addAction(self.action_delete_selected_pages)
+            self.page_icon_view_context_menu.addAction(self.delete_selected_pages_action)
             self.page_icon_view_context_menu.addAction(self.analyze_layout_action_selected)
             self.page_icon_view_context_menu.addAction(self.analyze_layout_and_recognize_action_selected)
 
         action = self.page_icon_view_context_menu.exec_(self.page_icon_view.mapToGlobal(point))
 
-        if action == self.action_delete_selected_pages:
+        if action == self.delete_selected_pages_action:
             self.page_icon_view.remove_selected_pages()
             self.update()
         # elif action == self.action_select_all:

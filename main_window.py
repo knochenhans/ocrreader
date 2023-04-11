@@ -128,8 +128,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exporter_manager.add_exporter('PlainText', ExporterPlainText(self))
         self.exporter_manager.add_exporter('ODT', ExporterODT(self))
 
-        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtGui.Qt.CursorShape.ArrowCursor))
-
     def __del__(self):
         self.temp_dir.cleanup()
 

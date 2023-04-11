@@ -27,6 +27,8 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.engine_manager = engine_manager
         self.custom_scene = scene
 
+        self.current_cursor = QtCore.Qt.CursorShape.ArrowCursor
+
         self.move_edges = False
 
         # Setup order number for painting
@@ -217,9 +219,9 @@ class Box(QtWidgets.QGraphicsRectItem):
             cursor = QtGui.QCursor(QtGui.Qt.CursorShape.SizeFDiagCursor)
 
         if cursor:
-            QtWidgets.QApplication.setOverrideCursor(cursor)
+            self.setCursor(cursor)
         else:
-            QtWidgets.QApplication.restoreOverrideCursor()
+            self.setCursor(self.current_cursor)
 
         super().hoverMoveEvent(event)
 

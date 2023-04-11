@@ -107,6 +107,8 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         self.header_item: HeaderFooterItem | None = None
         self.footer_item: HeaderFooterItem | None = None
 
+        self.current_cursor = QtCore.Qt.CursorShape.ArrowCursor
+
         self.undo_stack = undo_stack
 
         self.project = project
@@ -239,9 +241,10 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
                 cursor = QtCore.Qt.CursorShape.SplitHCursor
 
         if cursor:
-            QtWidgets.QApplication.setOverrideCursor(cursor)
+            self.parent().setCursor(cursor)
         else:
-            QtWidgets.QApplication.restoreOverrideCursor()
+            self.parent().setCursor(self.current_cursor)
+
 
         self.editor_state = new_state
 
@@ -592,17 +595,21 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             case BOX_EDITOR_SCENE_STATE.DRAW_BOX:
                 # Commit current rubberband drag as new box and select
                 if not self.current_rect.isEmpty():
-                    top_left = self.views()[0].mapToScene(self.current_rect.topLeft().toPoint())
-                    bottom_right = self.views()[0].mapToScene(self.current_rect.bottomRight().toPoint())
+                    top_left_ = self.current_rect.topLeft()
+                    top_right_ = self.current_rect.bottomRight()
 
-                    self.add_box(QtCore.QRectF(top_left, bottom_right).normalized()).setSelected(True)
+                    if isinstance(top_left_, QtCore.QPoint) and isinstance(top_right_, QtCore.QPoint):
+                        top_left = self.views()[0].mapToScene(top_left_)
+                        bottom_right = self.views()[0].mapToScene(top_right_)
+
+                        self.add_box(QtCore.QRectF(top_left, bottom_right).normalized()).setSelected(True)
 
                 self.set_editor_state(BOX_EDITOR_SCENE_STATE.SELECT)
         super().mouseReleaseEvent(event)
 
     def rubber_band_changed(self, rubberBandRect: QtCore.QRect, fromScenePoint, toScenePoint):
         if not rubberBandRect.isEmpty():
-            self.current_rect = rubberBandRect.toRectF()
+            self.current_rect = rubberBandRect
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         # Get selected boxes:

@@ -3,6 +3,7 @@ import math
 from dataclasses import dataclass
 
 import cv2
+import darkdetect
 import numpy
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -35,8 +36,13 @@ class Box(QtWidgets.QGraphicsRectItem):
         self.number_widget = QtWidgets.QGraphicsSimpleTextItem(self)
         self.number_widget.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
 
+        theme_folder = 'light-theme'
+
+        if darkdetect.isLight():
+            theme_folder = 'dark-theme'
+
         # Setup recognition checkmark symbol for painting
-        checkmark = QtGui.QPixmap('resources/icons/check-line.png').scaledToWidth(16, QtCore.Qt.TransformationMode.SmoothTransformation)
+        checkmark = QtGui.QPixmap(f'resources/icons/{theme_folder}/check-line.png').scaledToWidth(16, QtCore.Qt.TransformationMode.SmoothTransformation)
         self.recognized_widget = QtWidgets.QGraphicsPixmapItem(checkmark, self)
         self.recognized_widget.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
         self.recognized_widget.hide()

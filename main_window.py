@@ -4,6 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import darkdetect
 from iso639 import Lang  # type: ignore
 from papersize import SIZES  # type: ignore
 from pdf2image import convert_from_path  # type: ignore
@@ -86,9 +87,14 @@ class MainWindow(QtWidgets.QMainWindow):
         QtCore.QCoreApplication.setOrganizationDomain(app_name)
         QtCore.QCoreApplication.setApplicationName(app_name)
 
+        self.theme_folder = 'light-theme'
+
+        if darkdetect.isLight():
+            self.theme_folder = 'dark-theme'
+
         # self.restoreState(self.settings.value('windowState'))
         self.setWindowTitle(app_name)
-        self.setWindowIcon(QtGui.QIcon('resources/icons/character-recognition-line.png'))
+        self.setWindowIcon(QtGui.QIcon(f'resources/icons/{self.theme_folder}/character-recognition-line.png'))
         self.show()
 
         self.last_project_filename = ''
@@ -174,78 +180,78 @@ class MainWindow(QtWidgets.QMainWindow):
         self.close_project_action.setDisabled(True)
 
     def setup_actions(self) -> None:
-        self.exit_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-circle-line.png'), self.tr('&Exit', 'action_exit'), self)
+        self.exit_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/close-circle-line.png'), self.tr('&Exit', 'action_exit'), self)
         self.exit_action.setStatusTip(self.tr('Exit OCR Reader', 'status_exit'))
         self.exit_action.triggered.connect(self.close)
         self.exit_action.setShortcut(QtGui.QKeySequence('Ctrl+q'))
 
-        self.open_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-4-line.png'), self.tr('&Open Project', 'action_open_project'), self)
+        self.open_project_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/folder-4-line.png'), self.tr('&Open Project', 'action_open_project'), self)
         self.open_project_action.setStatusTip(self.tr('Open Project', 'status_open_project'))
         self.open_project_action.triggered.connect(self.open_project)
         self.open_project_action.setShortcut(QtGui.QKeySequence('Ctrl+o'))
 
-        self.export_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project', 'action_export_project'), self)
+        self.export_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/folder-transfer-line.png'), self.tr('&Export Project', 'action_export_project'), self)
         self.export_action.setStatusTip(self.tr('Export Project', 'status_export_project'))
         self.export_action.triggered.connect(self.export_project)
         self.export_action.setShortcut(QtGui.QKeySequence('Ctrl+e'))
 
-        self.export_txt_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as Plain Text', 'action_export_project_txt'), self)
+        self.export_txt_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/folder-transfer-line.png'), self.tr('&Export Project as Plain Text', 'action_export_project_txt'), self)
         self.export_txt_action.setStatusTip(self.tr('Export Project as Plain Text', 'action_export_project_txt'))
         self.export_txt_action.triggered.connect(self.export_plaintext)
 
-        self.export_epub_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as EPUB', 'action_export_project_epub'), self)
+        self.export_epub_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/folder-transfer-line.png'), self.tr('&Export Project as EPUB', 'action_export_project_epub'), self)
         self.export_epub_action.setStatusTip(self.tr('Export Project as EPUB', 'action_export_project_epub'))
         self.export_epub_action.triggered.connect(self.export_epub)
 
-        self.export_odt_action = QtGui.QAction(QtGui.QIcon('resources/icons/folder-transfer-line.png'), self.tr('&Export Project as ODT', 'action_export_project_odt'), self)
+        self.export_odt_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/folder-transfer-line.png'), self.tr('&Export Project as ODT', 'action_export_project_odt'), self)
         self.export_odt_action.setStatusTip(self.tr('Export Project as ODT', 'action_export_project_odt'))
         self.export_odt_action.triggered.connect(self.export_odt)
 
-        self.save_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/save-line.png'), self.tr('&Save Project', 'action_save_project'), self)
+        self.save_project_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/save-line.png'), self.tr('&Save Project', 'action_save_project'), self)
         self.save_project_action.setStatusTip(self.tr('Save Project', 'status_save_project'))
         self.save_project_action.triggered.connect(self.save_project)
         self.save_project_action.setShortcut(QtGui.QKeySequence('Ctrl+s'))
 
-        self.load_image_action = QtGui.QAction(QtGui.QIcon('resources/icons/image-line.png'), self.tr('&Load Image or PDF', 'action_load_image'), self)
+        self.load_image_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/image-line.png'), self.tr('&Load Image or PDF', 'action_load_image'), self)
         self.load_image_action.setStatusTip(self.tr('Load Image', 'status_load_image'))
         self.load_image_action.triggered.connect(self.load_image_dialog)
         self.load_image_action.setShortcut(QtGui.QKeySequence('Ctrl+i'))
 
-        self.analyze_layout_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-line.png'), self.tr('&Analyze Layout', 'action_analyze_layout'), self)
+        self.analyze_layout_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/layout-line.png'), self.tr('&Analyze Layout', 'action_analyze_layout'), self)
         self.analyze_layout_action.setStatusTip(self.tr('Analyze Layout', 'status_analyze_layout'))
         self.analyze_layout_action.triggered.connect(self.analyze_layout_current)
         self.analyze_layout_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+a'))
 
-        self.analyze_layout_and_recognize_action = QtGui.QAction(QtGui.QIcon('resources/icons/layout-fill.png'), self.tr('Analyze Layout and &Recognize', 'action_analyze_layout_and_recognize'), self)
+        self.analyze_layout_and_recognize_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/layout-fill.png'), self.tr('Analyze Layout and &Recognize', 'action_analyze_layout_and_recognize'), self)
         self.analyze_layout_and_recognize_action.setStatusTip(self.tr('Analyze Layout and Recognize', 'status_analyze_layout_and_recognize'))
         self.analyze_layout_and_recognize_action.triggered.connect(self.analyze_layout_and_recognize_current)
         self.analyze_layout_and_recognize_action.setShortcut(QtGui.QKeySequence('Ctrl+Alt+r'))
 
-        self.analyze_layout_action_selected = QtGui.QAction(QtGui.QIcon('resources/icons/layout-line.png'), self.tr('&Analyze Layout for Selected Pages', 'action_analyze_layout'), self)
+        self.analyze_layout_action_selected = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/layout-line.png'), self.tr('&Analyze Layout for Selected Pages', 'action_analyze_layout'), self)
         self.analyze_layout_action_selected.setStatusTip(self.tr('Analyze Layout', 'status_analyze_layout'))
         self.analyze_layout_action_selected.triggered.connect(self.analyze_layout_selected)
 
-        self.analyze_layout_and_recognize_action_selected = QtGui.QAction(QtGui.QIcon('resources/icons/layout-fill.png'),
+        self.analyze_layout_and_recognize_action_selected = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/layout-fill.png'),
                                                                           self.tr('Analyze Layout and &Recognize Selected Pages', 'action_analyze_layout_and_recognize'), self)
         self.analyze_layout_and_recognize_action_selected.setStatusTip(self.tr('Analyze Layout and Recognize', 'status_analyze_layout_and_recognize'))
         self.analyze_layout_and_recognize_action_selected.triggered.connect(self.analyze_layout_and_recognize_selected)
 
-        self.close_project_action = QtGui.QAction(QtGui.QIcon('resources/icons/close-line.png'), self.tr('&Close project', 'action_close_project'), self)
+        self.close_project_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/close-line.png'), self.tr('&Close project', 'action_close_project'), self)
         self.close_project_action.setStatusTip(self.tr('Close project', 'status_close_project'))
         self.close_project_action.triggered.connect(self.close_current_project)
         self.close_project_action.setShortcut(QtGui.QKeySequence('Ctrl+w'))
 
         self.undo_action = self.undo_stack.createUndoAction(self, self.tr('&Undo', 'Undo'))
-        self.undo_action.setIcon(QtGui.QIcon('resources/icons/arrow-go-back-line.png'))
+        self.undo_action.setIcon(QtGui.QIcon(f'resources/icons/{self.theme_folder}/arrow-go-back-line.png'))
         self.undo_action.setShortcut(QtGui.QKeySequence('Ctrl+z'))
         # self.undo_action.triggered.connect(self.undo)
 
         self.redo_action = self.undo_stack.createRedoAction(self, self.tr('&Redo', 'Redo'))
-        self.redo_action.setIcon(QtGui.QIcon('resources/icons/arrow-go-forward-line.png'))
+        self.redo_action.setIcon(QtGui.QIcon(f'resources/icons/{self.theme_folder}/arrow-go-forward-line.png'))
         self.redo_action.setShortcut(QtGui.QKeySequence('Ctrl+y'))
         # self.redo_action.triggered.connect(self.redo)
 
-        self.preferences_action = QtGui.QAction(QtGui.QIcon('resources/icons/settings-3-line.png'), self.tr('&Preferences', 'action_preferences'), self)
+        self.preferences_action = QtGui.QAction(QtGui.QIcon(f'resources/icons/{self.theme_folder}/settings-3-line.png'), self.tr('&Preferences', 'action_preferences'), self)
         self.preferences_action.setStatusTip(self.tr('Preferences', 'status_preferences'))
         self.preferences_action.triggered.connect(self.open_preferences)
         self.preferences_action.setShortcut(QtGui.QKeySequence('Ctrl+p'))

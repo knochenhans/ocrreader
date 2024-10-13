@@ -31,7 +31,12 @@ class ProjectPage(QtWidgets.QWidget):
         self.project = project
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)
-        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed))
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+        )
 
         self.name_edit = QtWidgets.QLineEdit(self)
         self.name_edit.setText(project.name)
@@ -42,17 +47,33 @@ class ProjectPage(QtWidgets.QWidget):
         self.language_combo.currentTextChanged.connect(self.language_changed)
         layout.addWidget(self.language_combo, 1, 0, 1, 2)
 
-        layout.addWidget(QtWidgets.QLabel(self.tr('Default paper size', 'paper_size')), 2, 0)
+        layout.addWidget(
+            QtWidgets.QLabel(
+                QtCore.QCoreApplication.translate("paper_size", "Default paper size")
+            ),
+            2,
+            0,
+        )
 
         self.default_paper_size_combo = QtWidgets.QComboBox(self)
-        self.default_paper_size_combo.currentIndexChanged.connect(self.default_paper_size_changed)
+        self.default_paper_size_combo.currentIndexChanged.connect(
+            self.default_paper_size_changed
+        )
 
         if self.project.pages:
-            self.default_paper_size_combo.setCurrentText(SIZES[self.project.default_paper_size])
+            self.default_paper_size_combo.setCurrentText(
+                SIZES[self.project.default_paper_size]
+            )
 
         layout.addWidget(self.default_paper_size_combo, 2, 1)
 
-        layout.addWidget(QtWidgets.QLabel(self.tr('Remove hyphens', 'remove_hyphens')), 3, 0)
+        layout.addWidget(
+            QtWidgets.QLabel(
+                QtCore.QCoreApplication.translate("remove_hyphens", "Remove hyphens")
+            ),
+            3,
+            0,
+        )
 
         self.remove_hyphens_checkbox = QtWidgets.QCheckBox(self)
         self.remove_hyphens_checkbox.stateChanged.connect(self.remove_hyphens_changed)
@@ -67,11 +88,13 @@ class ProjectPage(QtWidgets.QWidget):
 
     def default_paper_size_changed(self, default_paper_size_index):
         if self.project.pages:
-            paper_size = self.default_paper_size_combo.itemData(default_paper_size_index)
+            paper_size = self.default_paper_size_combo.itemData(
+                default_paper_size_index
+            )
             self.project.default_paper_size = paper_size
 
     def remove_hyphens_changed(self, state: int):
-        self.project.remove_hyphens = (state != 0)
+        self.project.remove_hyphens = state != 0
 
 
 class PagePage(QtWidgets.QWidget):
@@ -81,15 +104,28 @@ class PagePage(QtWidgets.QWidget):
 
         layout = QtWidgets.QGridLayout(self)
         self.setLayout(layout)
-        self.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed))
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+        )
 
-        layout.addWidget(QtWidgets.QLabel(self.tr('Paper size', 'paper_size')), 0, 0)
+        layout.addWidget(
+            QtWidgets.QLabel(
+                QtCore.QCoreApplication.translate("paper_size", "Paper size")
+            ),
+            0,
+            0,
+        )
 
         self.paper_size_combo = QtWidgets.QComboBox(self)
         self.paper_size_combo.currentIndexChanged.connect(self.paper_size_changed)
 
         if self.project.pages:
-            self.paper_size_combo.setCurrentText(SIZES[self.project.pages[self.project.current_page_idx].paper_size])
+            self.paper_size_combo.setCurrentText(
+                SIZES[self.project.pages[self.project.current_page_idx].paper_size]
+            )
 
         layout.addWidget(self.paper_size_combo, 0, 1)
 
@@ -107,22 +143,34 @@ class BoxPage(QtWidgets.QWidget):
         self.setLayout(layout)
 
         self.language_combo = QtWidgets.QComboBox(self)
-        layout.addWidget(self.language_combo, 0, 0, 1, 2, QtCore.Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(
+            self.language_combo, 0, 0, 1, 2, QtCore.Qt.AlignmentFlag.AlignTop
+        )
 
         self.text_edit = TextEditor(self, project)
         self.text_edit.setAcceptRichText(True)
         layout.addWidget(self.text_edit, 1, 0, 1, 2)
 
-        layout.addWidget(QtWidgets.QLabel(self.tr('Tag', 'tag')), 2, 0)
+        layout.addWidget(
+            QtWidgets.QLabel(QtCore.QCoreApplication.translate("tag", "Tag")), 2, 0
+        )
 
         self.tag_edit = QtWidgets.QLineEdit(self)
-        self.tag_edit.setPlaceholderText('Will be wrapped in EPUB/HTML export, e.g. "p" or "h1"')
+        self.tag_edit.setPlaceholderText(
+            'Will be wrapped in EPUB/HTML export, e.g. "p" or "h1"'
+        )
         layout.addWidget(self.tag_edit, 2, 1)
 
-        layout.addWidget(QtWidgets.QLabel(self.tr('Class(es)', 'classes')), 3, 0)
+        layout.addWidget(
+            QtWidgets.QLabel(QtCore.QCoreApplication.translate("classes", "Class(es)")),
+            3,
+            0,
+        )
 
         self.class_edit = QtWidgets.QLineEdit(self)
-        self.class_edit.setPlaceholderText('For EPUB/HTML export, multiple can be separated by space, e.g. "small caption"')
+        self.class_edit.setPlaceholderText(
+            'For EPUB/HTML export, multiple can be separated by space, e.g. "small caption"'
+        )
         layout.addWidget(self.class_edit, 3, 1)
 
         self.reset()
@@ -147,8 +195,12 @@ class BoxPage(QtWidgets.QWidget):
         self.text_edit.blockSignals(True)
 
         self.text_edit.setDisabled(True)
-        self.text_edit.setText('')
-        self.text_edit.setPlaceholderText(self.tr('No text recognized yet.', 'no_text_recognized_yet'))
+        self.text_edit.setText("")
+        self.text_edit.setPlaceholderText(
+            QtCore.QCoreApplication.translate(
+                "no_text_recognized_yet", "No text recognized yet."
+            )
+        )
 
         self.text_edit.blockSignals(False)
 
@@ -156,18 +208,22 @@ class BoxPage(QtWidgets.QWidget):
 
     def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
         match e.key():
-            case QtCore.Qt.Key_F7:
+            case QtCore.Qt.Key.Key_F7:
                 self.removeHyphens()
         return super().keyPressEvent(e)
 
     def removeHyphens(self) -> None:
-        document_helper = DocumentHelper(self.text_edit.document(), Lang(self.language_combo.currentText()).pt1)
+        document_helper = DocumentHelper(
+            self.text_edit.document(), Lang(self.language_combo.currentText()).pt1
+        )
         self.text_edit.setDocument(document_helper.remove_hyphens())
         self.update()
 
 
 class PropertyEditor(QtWidgets.QToolBox):
-    def __init__(self, parent, engine_manager: OCREngineManager, project: Project) -> None:
+    def __init__(
+        self, parent, engine_manager: OCREngineManager, project: Project
+    ) -> None:
         # self.box_editor: BoxEditor = None
         super().__init__(parent)
 
@@ -178,7 +234,9 @@ class PropertyEditor(QtWidgets.QToolBox):
         # Project
         self.project_widget = ProjectPage(self, self.project)
         self.project_widget.language_combo.addItems(languages)
-        self.addItem(self.project_widget, self.tr('Project', 'project'))
+        self.addItem(
+            self.project_widget, QtCore.QCoreApplication.translate("project", "Project")
+        )
 
         # Page
         self.page_widget = PagePage(self, self.project)
@@ -187,11 +245,15 @@ class PropertyEditor(QtWidgets.QToolBox):
 
         for size_key in SIZES:
             self.page_widget.paper_size_combo.addItem(SIZES[size_key], size_key)
-            self.project_widget.default_paper_size_combo.addItem(SIZES[size_key], size_key)
+            self.project_widget.default_paper_size_combo.addItem(
+                SIZES[size_key], size_key
+            )
 
         self.project_widget.default_paper_size_combo.blockSignals(False)
 
-        self.addItem(self.page_widget, self.tr('Page', 'page'))
+        self.addItem(
+            self.page_widget, QtCore.QCoreApplication.translate("page", "Page")
+        )
 
         # TODO: remove items instead of hiding
         self.page_widget.setDisabled(True)
@@ -199,11 +261,13 @@ class PropertyEditor(QtWidgets.QToolBox):
         # Recognition
         self.box_widget = BoxPage(self, self.project)
         self.box_widget.language_combo.addItems(languages)
-        self.addItem(self.box_widget, self.tr('Box', 'box'))
+        self.addItem(self.box_widget, QtCore.QCoreApplication.translate("box", "Box"))
 
         self.box_widget.text_edit.textChanged.connect(self.focus_box_widget)
         # self.box_widget.text_edit.editingFinished.connect(self.update_box)
-        self.project_widget.language_combo.currentTextChanged.connect(self.box_widget.language_combo.setCurrentText)
+        self.project_widget.language_combo.currentTextChanged.connect(
+            self.box_widget.language_combo.setCurrentText
+        )
 
         self.box_widget.setDisabled(True)
 

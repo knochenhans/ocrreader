@@ -1,6 +1,6 @@
 import copy
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import cv2
 import darkdetect
@@ -13,10 +13,10 @@ from box_editor.box_data import BOX_DATA_TYPE, BoxData
 @dataclass
 class BoxColor():
     '''Color properties to represent different box types'''
-    brush: QtGui.QBrush = QtGui.QBrush()
-    pen: QtGui.QPen = QtGui.QPen()
-    brush_selected: QtGui.QBrush = QtGui.QBrush()
-    pen_selected: QtGui.QPen = QtGui.QPen()
+    brush: QtGui.QBrush = field(default_factory=QtGui.QBrush)
+    pen: QtGui.QPen = field(default_factory=QtGui.QPen)
+    brush_selected: QtGui.QBrush = field(default_factory=QtGui.QBrush)
+    pen_selected: QtGui.QPen = field(default_factory=QtGui.QPen)
 
 
 class Box(QtWidgets.QGraphicsRectItem):

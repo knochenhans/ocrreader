@@ -9,18 +9,22 @@ from document_helper import DocumentHelper
 
 
 @dataclass
-class OCRResult():
+class OCRResult:
     bbox_rect: QtCore.QRect = QtCore.QRect()
-    text: str = ''
+    text: str = ""
     confidence: float = 0.0
     baseline: QtCore.QLine = QtCore.QLine()
     font_size: float = 0.0
 
     def set_bbox(self, bbox: tuple[int, int, int, int]):
-        self.bbox_rect = QtCore.QRect(QtCore.QPoint(bbox[0], bbox[1]), QtCore.QPoint(bbox[2], bbox[3]))
+        self.bbox_rect = QtCore.QRect(
+            QtCore.QPoint(bbox[0], bbox[1]), QtCore.QPoint(bbox[2], bbox[3])
+        )
 
     def set_baseline(self, baseline: tuple[tuple[int, int], tuple[int, int]]):
-        self.baseline = QtCore.QLine(baseline[0][0], baseline[0][1], baseline[1][0], baseline[1][1])
+        self.baseline = QtCore.QLine(
+            baseline[0][0], baseline[0][1], baseline[1][0], baseline[1][1]
+        )
 
     @abstractmethod
     def translate(self, distance: QtCore.QPoint) -> None:
@@ -46,7 +50,7 @@ class OCRResultWord(OCRResult):
     blanks_before: int = 0
 
     def translate(self, distance: QtCore.QPoint):
-        '''Translate coordinates by a distance'''
+        """Translate coordinates by a distance"""
 
         self.bbox = self.bbox_rect.translated(distance)
 
@@ -64,7 +68,7 @@ class OCRResultLine(OCRResult):
     words: list[OCRResultWord] = field(default_factory=list)
 
     def translate(self, distance: QtCore.QPoint):
-        '''Translate coordinates by a distance'''
+        """Translate coordinates by a distance"""
 
         self.bbox = self.bbox_rect.translated(distance)
 
@@ -93,7 +97,7 @@ class OCRResultParagraph(OCRResult):
     lines: list[OCRResultLine] = field(default_factory=list)
 
     def translate(self, distance: QtCore.QPoint):
-        '''Translate coordinates by a distance'''
+        """Translate coordinates by a distance"""
 
         self.bbox = self.bbox_rect.translated(distance)
 
@@ -129,18 +133,20 @@ class OCR_RESULT_BLOCK_TYPE(Enum):
 @dataclass
 class OCRResultBlock(OCRResult):
     paragraphs: list[OCRResultParagraph] = field(default_factory=list)
-    language: Lang = Lang('en')
+    language: Lang = Lang("en")
     type: OCR_RESULT_BLOCK_TYPE = OCR_RESULT_BLOCK_TYPE.TEXT
-    tag: str = ''
-    class_: str = ''
+    tag: str = ""
+    class_: str = ""
 
-    def get_document(self, diagnostics: bool = False, remove_hyphens=True) -> QtGui.QTextDocument:
-        '''Get text as QTextDocument'''
+    def get_document(
+        self, diagnostics: bool = False, remove_hyphens=True
+    ) -> QtGui.QTextDocument:
+        """Get text as QTextDocument"""
         document = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(document)
         format = QtGui.QTextCharFormat()
 
-        app_name = 'OCR Reader'
+        app_name = "OCR Reader"
 
         QtCore.QCoreApplication.setOrganizationName(app_name)
         QtCore.QCoreApplication.setOrganizationDomain(app_name)
@@ -148,8 +154,7 @@ class OCRResultBlock(OCRResult):
 
         settings = QtCore.QSettings()
 
-
-        value = settings.value('diagnostics_threshold', 80)
+        value = settings.value("diagnostics_threshold", 80)
 
         if isinstance(value, str):
             diagnostics_threshold = int(value)
@@ -170,19 +175,26 @@ class OCRResultBlock(OCRResult):
                         for w, word in enumerate(line.words):
                             if diagnostics:
                                 if word.confidence < diagnostics_threshold:
-                                    format.setBackground(QtGui.QColor(255, 0, 0, int(1 - (word.confidence / 100)) * 200))
+                                    format.setBackground(
+                                        QtGui.QColor(
+                                            255,
+                                            0,
+                                            0,
+                                            int(1 - (word.confidence / 100)) * 200,
+                                        )
+                                    )
                                 cursor.setCharFormat(format)
 
-                            cursor.insertText(word.blanks_before * ' ')
+                            cursor.insertText(word.blanks_before * " ")
                             cursor.insertText(word.text)
                             format.clearBackground()
                             cursor.setCharFormat(format)
                         if l < (len(paragraph.lines) - 1):
                             # QChar::LineSeparator
-                            cursor.insertText('\u2028')
+                            cursor.insertText("\u2028")
                 if p < (len(self.paragraphs) - 1):
                     # QChar::ParagraphSeparator
-                    cursor.insertText('\u2029')
+                    cursor.insertText("\u2029")
 
             if remove_hyphens:
                 document_helper = DocumentHelper(document, self.language.pt1)
@@ -216,7 +228,7 @@ class OCRResultBlock(OCRResult):
         self.class_ = file.readString()
 
     def get_words(self) -> list[OCRResultWord]:
-        '''Get list of words'''
+        """Get list of words"""
         words: list[OCRResultWord] = []
 
         for p in self.paragraphs:
@@ -225,7 +237,7 @@ class OCRResultBlock(OCRResult):
         return words
 
     def get_font_size(self) -> float:
-        '''Get average font size of text in block'''
+        """Get average font size of text in block"""
 
         font_sizes_sum = 0.0
 
@@ -237,7 +249,7 @@ class OCRResultBlock(OCRResult):
         return int(font_sizes_sum / len(words))
 
     def translate(self, distance: QtCore.QPoint) -> None:
-        '''Translate coordinates by a distance (ignore block itself)'''
+        """Translate coordinates by a distance (ignore block itself)"""
 
         # self.bbox.translated(distance)
 

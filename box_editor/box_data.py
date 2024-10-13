@@ -19,7 +19,7 @@ class BoxData():
     type: BOX_DATA_TYPE = BOX_DATA_TYPE.TEXT
     text: QtGui.QTextDocument = QtGui.QTextDocument()
     language: Lang = Lang('English')
-    ocr_result_block: OCRResultBlock = OCRResultBlock()
+    ocr_result_block: OCRResultBlock = field(default_factory=OCRResultBlock)
     tag: str = ''
     class_: str = ''
     export_enabled: bool = True

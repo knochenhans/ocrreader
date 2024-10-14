@@ -79,7 +79,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setup_project()
 
         self.statusBar().showMessage(
-            QtCore.QCoreApplication.translate("OCR Reader loaded", "status_loaded")
+            QtCore.QCoreApplication.translate("status_loaded", "OCR Reader loaded")
         )
 
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -248,7 +248,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
         )
         self.save_project_action.setStatusTip(
-            QtCore.QCoreApplication.translate("Save Project", "status_save_project")
+            QtCore.QCoreApplication.translate("status_save_project", "Save Project")
         )
         self.save_project_action.triggered.connect(self.save_project)
         self.save_project_action.setShortcut(QtGui.QKeySequence("Ctrl+s"))
@@ -306,7 +306,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
         )
         self.analyze_layout_action_selected.setStatusTip(
-            QtCore.QCoreApplication.translate("Analyze Layout", "status_analyze_layout")
+            QtCore.QCoreApplication.translate("status_analyze_layout", "Analyze Layout")
         )
         self.analyze_layout_action_selected.triggered.connect(
             self.analyze_layout_selected
@@ -315,8 +315,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.analyze_layout_and_recognize_action_selected = QtGui.QAction(
             QtGui.QIcon(f"resources/icons/{self.theme_folder}/layout-fill.png"),
             QtCore.QCoreApplication.translate(
-                "Analyze Layout and &Recognize Selected Pages",
                 "action_analyze_layout_and_recognize",
+                "Analyze Layout and &Recognize Selected Pages",
             ),
             self,
         )
@@ -335,7 +335,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
         )
         self.close_project_action.setStatusTip(
-            QtCore.QCoreApplication.translate("Close project", "status_close_project")
+            QtCore.QCoreApplication.translate("status_close_project", "Close project")
         )
         self.close_project_action.triggered.connect(self.close_current_project)
         self.close_project_action.setShortcut(QtGui.QKeySequence("Ctrl+w"))
@@ -531,8 +531,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 "status_load_image", "Load Image or PDF"
             ),
             filter=QtCore.QCoreApplication.translate(
-                "Image and PDF files (*.jpg *.jpeg *.png *.gif *.bmp *.ppm *.pdf)",
                 "filter_image_files",
+                "Image and PDF files (*.jpg *.jpeg *.png *.gif *.bmp *.ppm *.pdf)",
             ),
         )
 
@@ -733,8 +733,13 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 QtWidgets.QMessageBox.warning(
                     self,
-                    "Export Canceled",
-                    "There are no recognized text boxes or images that can be exported for this document. The export process has been canceled.",
+                    QtCore.QCoreApplication.translate(
+                        "export_canceled", "Export Canceled"
+                    ),
+                    QtCore.QCoreApplication.translate(
+                        "export_canceled_message",
+                        "There are no recognized text boxes or images that can be exported for this document. The export process has been canceled.",
+                    ),
                     QtWidgets.QMessageBox.StandardButton.Ok,
                 )
 
@@ -873,7 +878,7 @@ class LoadImageCommand(QtGui.QUndoCommand):
 
                     self.main_window.statusBar().showMessage(
                         QtCore.QCoreApplication.translate(
-                            "Image loaded", "MainWindow", "status_image_loaded"
+                            "status_image_loaded", "Image loaded", "MainWindow"
                         )
                         + ": "
                         + page.image_path

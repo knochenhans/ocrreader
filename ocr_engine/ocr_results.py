@@ -121,7 +121,7 @@ class OCRResultParagraph(OCRResult):
             self.lines.append(line)
 
 
-# TODO: Unify this with BOX_DATA_TYPE
+#TODO: Unify this with BOX_DATA_TYPE
 class OCR_RESULT_BLOCK_TYPE(Enum):
     UNKNOWN = auto()
     TEXT = auto()

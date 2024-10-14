@@ -17,88 +17,9 @@ from exporter import ExporterEPUB, ExporterManager, ExporterODT, ExporterPlainTe
 from ocr_engine.ocr_engine import OCREngineManager
 from ocr_engine.ocr_engine_tesserocr import OCREngineTesserocr
 from pages_icon_view import PagesIconView
+from preferences import Preferences
 from project import Page, Project
 from property_editor import PropertyEditor
-
-
-class Preferences_General(QtWidgets.QWidget):
-    def __init__(self, parent, settings: QtCore.QSettings) -> None:
-        super().__init__(parent)
-
-        self.name = QtCore.QCoreApplication.translate(
-            "Preferences_General", "General", "preferences_page_general"
-        )
-
-        layout = QtWidgets.QGridLayout(self)
-        self.setLayout(layout)
-
-        self.diagnostic_threshold_edit = QtWidgets.QLineEdit(
-            str(settings.value("diagnostics_threshold", 80))
-        )
-        self.diagnostic_threshold_edit.setValidator(QtGui.QIntValidator(0, 100, self))
-
-        layout.addWidget(
-            QtWidgets.QLabel(
-                QtCore.QCoreApplication.translate(
-                    "Diagnostics threshold", "diagnostics_threshold"
-                )
-            ),
-            0,
-            0,
-        )
-        layout.addWidget(self.diagnostic_threshold_edit, 0, 1)
-
-
-class Preferences(QtWidgets.QDialog):
-    def __init__(self, parent, settings: QtCore.QSettings) -> None:
-        super().__init__(parent)
-
-        self.settings = settings
-
-        self.setWindowTitle(
-            QtCore.QCoreApplication.translate("preferences", "Preferences")
-        )
-
-        self.resize(800, 600)
-
-        stacked_widget = QtWidgets.QStackedWidget()
-        self.preferences_general = Preferences_General(self, self.settings)
-
-        pages_list = QtWidgets.QListWidget()
-        pages_list.insertItem(0, self.preferences_general.name)
-
-        stacked_widget.addWidget(self.preferences_general)
-
-        vbox_layout = QtWidgets.QVBoxLayout(self)
-        hbox_layout = QtWidgets.QHBoxLayout()
-
-        hbox_layout.addWidget(pages_list)
-        hbox_layout.addWidget(stacked_widget)
-        pages_list.setSizePolicy(
-            QtWidgets.QSizePolicy(
-                QtWidgets.QSizePolicy.Policy.Minimum,
-                QtWidgets.QSizePolicy.Policy.Expanding,
-            )
-        )
-
-        vbox_layout.addLayout(hbox_layout)
-
-        buttons = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Ok
-            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-
-        vbox_layout.addWidget(buttons)
-
-    def accept(self) -> None:
-        self.settings.setValue(
-            "diagnostics_threshold",
-            self.preferences_general.diagnostic_threshold_edit.text(),
-        )
-
-        return super().accept()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -167,6 +88,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exporter_manager.add_exporter("EPUB", ExporterEPUB(self))
         self.exporter_manager.add_exporter("PlainText", ExporterPlainText(self))
         self.exporter_manager.add_exporter("ODT", ExporterODT(self))
+
+        from recent_files_manager import RecentFilesManager
+        self.recent_files_manager = RecentFilesManager(self)
 
     def __del__(self):
         self.temp_dir.cleanup()
@@ -507,103 +431,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.edit_menu.addAction(self.undo_action)
         self.edit_menu.addAction(self.redo_action)
 
-    def add_recent_doc(self, file_path: str):
-        # Add new file path to top of list, remove the last one
-        action = QtGui.QAction(file_path)
-        action.triggered.connect(self.open_recent_doc)
-        self.recent_docs.insert(0, action)
-
-        # Remove any duplicates
-        unique_actions = []
-
-        for action in self.recent_docs:
-            if action.text() not in [a.text() for a in unique_actions]:
-                unique_actions.append(action)
-
-        self.recent_docs = unique_actions
-
-        if len(self.recent_docs) > 5:
-            self.recent_docs.pop()
-
-        # Update recent documents menu
-        self.recent_docs_menu.clear()
-        self.recent_docs_menu.addActions(self.recent_docs)
-
-    def open_recent_doc(self):
-        # Get selected recent document and open it
-        sender = self.sender()
-
-        if isinstance(sender, QtGui.QAction):
-            file_path: str = sender.text()
-
-            if os.path.exists(file_path):
-                self.load_images([file_path])
-                return True
-            else:
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    "File not found",
-                    f"The document {file_path} could not be opened and will be removed from the recent documents list.",
-                )
-                self.remove_recent_doc(file_path)
-        return False
-
-    def remove_recent_doc(self, file_path: str) -> None:
-        for recent_doc in self.recent_docs:
-            if recent_doc.text() == file_path:
-                self.recent_docs.remove(recent_doc)
-
-    def add_recent_project(self, file_path: str):
-        # Add new file path to top of list, remove the last one
-        action = QtGui.QAction(file_path)
-        action.triggered.connect(self.open_recent_project)
-        self.recent_projects.insert(0, action)
-
-        # Remove any duplicates
-        unique_actions = []
-
-        for action in self.recent_projects:
-            if action.text() not in [a.text() for a in unique_actions]:
-                unique_actions.append(action)
-
-        self.recent_projects = unique_actions
-
-        if len(self.recent_projects) > 5:
-            self.recent_projects.pop()
-
-        for action in self.recent_projects:
-            action.setShortcut("")
-
-        self.recent_projects[0].setShortcut(QtGui.QKeySequence("Ctrl+1"))
-
-        # Update recent documents menu
-        self.recent_projects_menu.clear()
-        self.recent_projects_menu.addActions(self.recent_projects)
-
-    def open_recent_project(self) -> bool:
-        # Get selected recent document and open it
-        sender = self.sender()
-
-        if isinstance(sender, QtGui.QAction):
-            file_path: str = sender.text()
-
-            if os.path.exists(file_path):
-                self.open_project_file(file_path)
-                return True
-            else:
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    "File not found",
-                    f"The project file {file_path} could not be opened and will be removed from the recent projects list.",
-                )
-                self.remove_recent_project(file_path)
-        return False
-
-    def remove_recent_project(self, file_path: str) -> None:
-        for recent_project in self.recent_projects:
-            if recent_project.text() == file_path:
-                self.recent_projects.remove(recent_project)
-
     def on_page_icon_view_context_menu(self, point):
         if self.page_icon_view.selectedIndexes():
             self.page_icon_view_context_menu.addAction(
@@ -771,7 +598,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
         # Add file path to recent projects menu
-        self.add_recent_project(filename)
+        self.recent_files_manager.add_recent_project(filename)
 
     def open_project(self) -> None:
         filename = QtWidgets.QFileDialog.getOpenFileName(
@@ -854,7 +681,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         # Add file path to recent projects menu
-        self.add_recent_project(filename)
+        self.recent_files_manager.add_recent_project(filename)
 
     def close_project(self) -> None:
         self.page_icon_view.close()
@@ -989,7 +816,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if recent_docs:
                 for recent_doc in reversed(recent_docs):
-                    self.add_recent_doc(recent_doc)
+                    self.recent_files_manager.add_recent_doc(recent_doc)
 
         value = self.settings.value("recentProjects")
 
@@ -998,7 +825,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if recent_projects:
                 for recent_project in reversed(recent_projects):
-                    self.add_recent_project(recent_project)
+                    self.recent_files_manager.add_recent_project(recent_project)
 
 
 class LoadImageCommand(QtGui.QUndoCommand):
@@ -1053,7 +880,7 @@ class LoadImageCommand(QtGui.QUndoCommand):
                     )
 
                 # Add file path to recent documents menu
-                self.main_window.add_recent_doc(filename)
+                self.main_window.recent_files_manager.add_recent_doc(filename)
 
         if pages:
             self.main_window.project_set_active()

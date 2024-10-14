@@ -4,3 +4,4 @@
 /box_editor/__pycache__
 /ocr_engine/__pycache__
 /testing
+**/*.pyc

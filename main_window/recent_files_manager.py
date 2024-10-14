@@ -1,7 +1,7 @@
 from PySide6 import QtGui, QtWidgets, QtCore
 import os
 
-from main_window import MainWindow
+from main_window.main_window import MainWindow
 
 
 class RecentFilesManager:

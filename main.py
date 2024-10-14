@@ -2,7 +2,7 @@ import sys
 
 from PySide6 import QtCore
 
-from main_window import MainWindow
+from main_window.main_window import MainWindow
 from ocrreader import ocrreader
 
 if __name__ == '__main__':

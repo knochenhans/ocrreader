@@ -2,8 +2,7 @@ from enum import Enum, auto
 from typing import Union
 
 from iso639 import Lang
-from box_editor.commands import AddBoxCommand, AnalyseLayoutCommand, ModifyBoxCommand, RemoveBoxCommand
-from ocr_engine.ocr_engine import OCREngineManager  # type: ignore
+from ocr_engine.ocr_engine import OCREngineManager
 from ocr_engine.ocr_results import (
     OCR_RESULT_BLOCK_TYPE,
     OCRResultBlock,
@@ -347,6 +346,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
     def add_box(self, rect: QtCore.QRectF, order=-1) -> Box:
         """Add new box and give it an order number"""
 
+        from box_editor.commands import AddBoxCommand
         add_box_command = AddBoxCommand(self, rect, order)
         self.undo_stack.push(add_box_command)
 
@@ -380,6 +380,7 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
         return self.current_box
 
     def remove_box(self, box: Box) -> None:
+        from box_editor.commands import RemoveBoxCommand
         remove_box_command = RemoveBoxCommand(self, box)
         self.undo_stack.push(remove_box_command)
 
@@ -831,9 +832,11 @@ class BoxEditorScene(QtWidgets.QGraphicsScene):
             )
 
     def analyse_layout(self) -> None:
+        from box_editor.commands import AnalyseLayoutCommand
         analyse_layout_command = AnalyseLayoutCommand(self)
         self.undo_stack.push(analyse_layout_command)
 
     def modify_box(self, box: Box, properties: BoxData, last_pos: QtCore.QPointF):
+        from box_editor.commands import ModifyBoxCommand
         modify_box_command = ModifyBoxCommand(box, properties, last_pos)
         self.undo_stack.push(modify_box_command)
